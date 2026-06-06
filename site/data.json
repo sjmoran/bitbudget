@@ -14,7 +14,12 @@
     "HNSW":          {"axis": "organisation", "desc": "A hierarchical navigable small-world graph. Stores the full vectors plus a graph, so it adds bytes but buys very high query throughput (Malkov & Yashunin, 2020)."},
     "IVF-PQ":        {"axis": "organisation", "desc": "An inverted file over coarse centroids with product-quantised residuals: an order-of-magnitude smaller footprint at lower recall (Jegou et al., 2011)."},
     "ITQ+rerank":    {"axis": "quantisation", "desc": "Iterative-quantisation binary codes (16 bytes) with full-precision re-ranking of a Hamming shortlist (Gong et al., 2011)."},
-    "bittrie":       {"axis": "quantisation", "desc": "A van Emde Boas / PATRICIA radix-trie over compact sign-codes: the sorted code array is the trie, searched coarse-to-fine, then re-ranked. Routes on an 8-byte code, reaching graph-class recall at a fraction of a graph's memory (research entry; see bitbudget bench-index)."}
+    "bittrie":       {"axis": "quantisation", "desc": "A van Emde Boas / PATRICIA radix-trie over compact sign-codes: the sorted code array is the trie, searched coarse-to-fine, then re-ranked. Routes on an 8-byte code, reaching graph-class recall at a fraction of a graph's memory (research entry; see bitbudget bench-index)."},
+    "LSH":           {"axis": "projection",   "desc": "Random hyperplane projections, one sign-bit each: a data-oblivious code. The baseline the learned projections improve on (Charikar, 2002)."},
+    "ITQ":           {"axis": "projection",   "desc": "Iterative Quantisation: an unsupervised learned rotation that aligns the principal axes to the binary hypercube before thresholding (Gong et al., 2011)."},
+    "GRH":           {"axis": "projection",   "desc": "Graph Regularised Hashing: a signed label graph (same-class must-link, different-class cannot-link) shapes the projection, a supervised binary code (Moran & Lavrenko, 2015)."},
+    "KSH":           {"axis": "projection",   "desc": "Supervised Hashing with Kernels: a kernel map to anchors whose bits are learned sequentially against a supervised similarity residue (Liu et al., 2012)."},
+    "DPSH (deep)":   {"axis": "projection",   "desc": "Deep Pairwise-Supervised Hashing: a neural hash head trained with a pairwise likelihood and a quantisation penalty, coupling the projection and quantisation in one learned network (Li et al., 2016). Here a two-stage head over the same frozen features and labels as GRH/KSH."}
   },
   "embedders": [
     {
@@ -79,6 +84,19 @@
       {"method": "ivfpq",   "axis": "organisation",  "bytes": 64,  "recall": 0.712, "qps": 33745},
       {"method": "flat",    "axis": "organisation",  "bytes": 512, "recall": 1.000, "qps": 27059},
       {"method": "hnsw",    "axis": "organisation",  "bytes": 704, "recall": 1.000, "qps": 51895}
+    ]
+  },
+  "supervised": {
+    "title": "Supervised hashing on CIFAR-10 — does a better projection pay?",
+    "note": "Class-mAP on CIFAR-10 (512-d ResNet-18 features, class-based relevance, mean ± std over 3 splits) at a matched 8-byte budget, against full-precision float (2 KB) and product quantisation (64 B). At a fixed quantiser the story is the projection axis: a random code (LSH) trails the float, a learned unsupervised rotation (ITQ) edges past it, supervision (GRH, KSH) more than doubles it at 256x less memory, and a deep hash head (DPSH) — the pairwise objective trained on the same frozen features and labels — is higher still. Evidence for the lens, not a submittable board; reproduce with the paper's benchmark harness (train_deep_hash.py + run_cifar_supervised.py --deep).",
+    "rows": [
+      {"method": "DPSH (deep)",  "axis": "projection",   "bytes": 8,    "map": 0.600, "std": 0.002},
+      {"method": "GRH",          "axis": "projection",   "bytes": 8,    "map": 0.508, "std": 0.004},
+      {"method": "KSH",          "axis": "projection",   "bytes": 8,    "map": 0.473, "std": 0.006},
+      {"method": "ITQ",          "axis": "projection",   "bytes": 8,    "map": 0.265, "std": 0.002},
+      {"method": "IVF-PQ",       "axis": "quantisation", "bytes": 64,   "map": 0.241, "std": 0.002},
+      {"method": "Exact (flat)", "axis": "none",         "bytes": 2048, "map": 0.223, "std": 0.002},
+      {"method": "LSH",          "axis": "projection",   "bytes": 8,    "map": 0.188, "std": 0.003}
     ]
   }
 }

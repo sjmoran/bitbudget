@@ -202,6 +202,22 @@
 </div></section>
 
 <section><div class="wrap">
+  <h2>Supervised hashing</h2>
+  <p class="sub">Not a separate leaderboard. The compression and indexing boards above are
+    unsupervised; this is the other regime, where labels are available and a better
+    <b>projection</b> can be learned. Same lens, different axis. Nothing to submit here.</p>
+  <h3 id="suptitle"></h3>
+  <p class="sub" id="supnote"></p>
+  <div class="plotwrap">
+    <svg id="plotSup" viewBox="0 0 720 380" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="legend" id="legendSup"></div>
+  </div>
+  <table id="suptbl"><thead><tr>
+    <th>Method</th><th>Axis</th><th class="num">Bytes/vec</th><th class="num">class-mAP</th>
+  </tr></thead><tbody id="suprows"></tbody></table>
+</div></section>
+
+<section><div class="wrap">
   <h2>Methods &amp; indexes</h2>
   <p class="sub">Every entry on either leaderboard is a single design choice on one axis of the lens.</p>
   <div id="methods"></div>
@@ -252,6 +268,7 @@ fetch("data.json").then(r=>r.json()).then(d=>{
   methodsSection();
   drawMain(); renderMain();
   drawScale();
+  drawSupervised();
 });
 
 // ---- generic scatter with point-aligned ticks and label de-collision ----
@@ -343,6 +360,24 @@ function drawScale(){
     `<td><span class="chip ${r.axis}">${r.axis}</span></td>`+
     `<td class="num">${r.bytes.toLocaleString()}</td><td class="num">${r.recall.toFixed(3)}</td>`+
     `<td class="num">${r.qps.toLocaleString()}</td></tr>`).join("");
+}
+
+function drawSupervised(){
+  const s=DATA.supervised; if(!s) return;
+  document.getElementById("suptitle").textContent=s.title;
+  document.getElementById("supnote").textContent=s.note;
+  scatter("plotSup","legendSup",s.rows,{
+    x:r=>r.bytes, y:r=>r.map, xlog:true,
+    xfmt:v=>v.toLocaleString(), yfmt:v=>v.toFixed(2),
+    xtitle:"bytes per vector (log scale) — fewer is better →",
+    ytitle:"class-mAP — higher is better"});
+  document.getElementById("suprows").innerHTML=s.rows.map(r=>{
+    const desc=((DATA.methods||{})[r.method]||{}).desc||"";
+    return `<tr><td class="method" title="${desc.replace(/"/g,'&quot;')}">${r.method}</td>`+
+      `<td><span class="chip ${r.axis}">${r.axis}</span></td>`+
+      `<td class="num">${r.bytes.toLocaleString()}</td>`+
+      `<td class="num">${r.map.toFixed(3)}${r.std?(" ± "+r.std):""}</td></tr>`;
+  }).join("");
 }
 
 function methodsSection(){
