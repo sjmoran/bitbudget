@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bitbudget"
-version = "0.1.0"
+version = "0.2.0"
 description = "How much retrieval quality do you keep per byte? A reproducible benchmark for embedding compression."
 readme = "README.md"
 requires-python = ">=3.9"
