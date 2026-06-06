@@ -93,34 +93,77 @@ def cmd_indexes(a):
 
 
 def cmd_bench_index(a):
-    """Build each index over document vectors and report recall@k, QPS and bytes/vec."""
-    if a.synthetic:
-        N, D = a.synthetic
-        rng = np.random.RandomState(0)
-        centers = rng.randn(max(2, N // 500), D).astype(np.float32) * 4.0
-        xb = centers[rng.randint(0, len(centers), N)] + rng.randn(N, D).astype(np.float32)
-        nq = min(1000, max(1, N // 10))
-        xq = xb[rng.choice(N, nq, replace=False)] + 0.1 * rng.randn(nq, D).astype(np.float32)
-        label = f"synthetic N={N} D={D}"
-    elif a.npz:
-        z = np.load(os.path.expanduser(a.npz), allow_pickle=True)
-        xb = z["base"] if "base" in z.files else z["demb"]
-        xq = z["query"] if "query" in z.files else z["qemb"]
-        label = a.npz
-    elif a.embedder and a.corpus:
-        z = np.load(_emb_path(a.cache, a.embedder, a.corpus), allow_pickle=True)
-        xb, xq = z["demb"], z["qemb"]
-        label = f"{a.embedder} x {a.corpus}"
-    else:
-        raise SystemExit("bench-index needs one of: --synthetic N D | --npz PATH | --embedder X --corpus Y")
+    """Build each index over document vectors and report recall@k, QPS and bytes/vec.
+
+    faiss (its OpenMP) and the bit-trie (libomp for the C kernel) cannot share one process on
+    macOS (two OpenMP runtimes). When both groups are requested we run each in its own subprocess
+    and merge; the data is deterministic from the arguments, so the split is transparent.
+    """
+    sel = a.indexes or list_indexes()
+    faiss_grp = [n for n in sel if getattr(INDEXES[n], "axis", "") == "organisation"]
+    other_grp = [n for n in sel if n not in faiss_grp]
+    if faiss_grp and other_grp and not getattr(a, "no_split", False):
+        import subprocess
+        import sys
+        import tempfile
+        import shutil
+        merged, meta = [], {}
+        for grp in (faiss_grp, other_grp):
+            td = tempfile.mkdtemp()
+            cmd = [sys.executable, "-m", "bitbudget.cli", "bench-index",
+                   *_bench_data_args(a), "--k", str(a.k), "--out", td, "--no-split",
+                   "--indexes", *grp]
+            subprocess.run(cmd, check=True, env=os.environ.copy())
+            c = json.load(open(os.path.join(td, "index_card.json")))
+            merged += c["rows"]; meta = c
+            shutil.rmtree(td, ignore_errors=True)
+        merged.sort(key=lambda r: r["bytes"])
+        os.makedirs(a.out, exist_ok=True)
+        card = dict(source=meta["source"], k=a.k, dim=meta["dim"], n=meta["n"], rows=merged)
+        json.dump(card, open(os.path.join(a.out, "index_card.json"), "w"), indent=2)
+        print("\n=== board (faiss + bit-trie run in separate processes) ===")
+        for r in merged:
+            print(f"  {r['method']:14s}{r['bytes']:8.0f}B  recall@{a.k}={r['recall']:.3f}  {r['qps']:9.0f} qps")
+        print(f"wrote index card -> {os.path.join(a.out, 'index_card.json')}")
+        return card
+
+    xb, xq, label = _bench_load(a)
     print(f"[bench-index] {label}: base={tuple(xb.shape)}, queries={len(xq)}, k={a.k}")
-    rows = bench_indexes(xb, xq, k=a.k, which=a.indexes)
+    rows = bench_indexes(xb, xq, k=a.k, which=sel)
     os.makedirs(a.out, exist_ok=True)
     card = dict(source=label, k=a.k, dim=int(xb.shape[1]), n=int(len(xb)), rows=rows)
     path = os.path.join(a.out, "index_card.json")
     json.dump(card, open(path, "w"), indent=2)
     print(f"\nwrote index card -> {path}")
     return card
+
+
+def _bench_data_args(a):
+    if a.synthetic:
+        return ["--synthetic", str(a.synthetic[0]), str(a.synthetic[1])]
+    if a.npz:
+        return ["--npz", a.npz]
+    return ["--embedder", a.embedder, "--corpus", a.corpus, "--cache", a.cache]
+
+
+def _bench_load(a):
+    if a.synthetic:
+        N, D = a.synthetic
+        rng = np.random.RandomState(0)
+        centers = rng.randn(max(2, N // 500), D).astype(np.float32) * 4.0
+        xb = centers[rng.randint(0, len(centers), N)] + rng.randn(N, D).astype(np.float32)
+        nq = min(10000, max(1, N // 10))                  # enough queries to time throughput stably
+        xq = xb[rng.choice(N, nq, replace=False)] + 0.1 * rng.randn(nq, D).astype(np.float32)
+        return xb, xq, f"synthetic N={N} D={D}"
+    if a.npz:
+        z = np.load(os.path.expanduser(a.npz), allow_pickle=True)
+        xb = z["base"] if "base" in z.files else z["demb"]
+        xq = z["query"] if "query" in z.files else z["qemb"]
+        return xb, xq, a.npz
+    if a.embedder and a.corpus:
+        z = np.load(_emb_path(a.cache, a.embedder, a.corpus), allow_pickle=True)
+        return z["demb"], z["qemb"], f"{a.embedder} x {a.corpus}"
+    raise SystemExit("bench-index needs one of: --synthetic N D | --npz PATH | --embedder X --corpus Y")
 
 
 def cmd_embedders(a):
@@ -171,6 +214,8 @@ def main(argv=None):
     bi.add_argument("--k", type=int, default=10)
     bi.add_argument("--indexes", nargs="+", default=None, help="subset of indexes to run")
     bi.add_argument("--out", default="results")
+    bi.add_argument("--no-split", dest="no_split", action="store_true",
+                    help="run all indexes in one process (do not isolate faiss from the bit-trie)")
     a = p.parse_args(argv)
     if a.cmd == "embed":   cmd_embed(a)
     elif a.cmd == "eval":  cmd_eval(a)

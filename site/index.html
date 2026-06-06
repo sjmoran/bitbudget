@@ -78,6 +78,15 @@
     border-radius:4px;padding:1px 6px;font-family:ui-monospace,Menlo,monospace;font-size:12.5px}
   footer{padding:26px 0 48px;color:var(--mut);font-size:13px}
   .muted{color:var(--mut)}
+  .callout{display:flex;flex-wrap:wrap;gap:6px 20px;background:var(--soft);border:1px solid var(--line);
+    border-left:3px solid var(--link);border-radius:6px;padding:11px 14px;margin:0 0 16px;font-size:13px}
+  .callout b{color:var(--ink)} .callout code{background:var(--bg)}
+  .badge{display:inline-block;font-size:10.5px;font-weight:700;color:#fff;background:var(--link);
+    border-radius:4px;padding:1px 7px;margin-left:8px;vertical-align:middle;text-transform:uppercase;letter-spacing:.3px}
+  table.orient{width:100%;border-collapse:collapse;font-size:13.5px;margin:8px 0 4px}
+  table.orient th,table.orient td{padding:10px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+  table.orient th{background:var(--soft);font-size:11.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.4px}
+  table.orient td code{font-size:12px}
 </style>
 </head>
 <body>
@@ -95,34 +104,51 @@
 </div></header>
 
 <section><div class="wrap">
-  <h2>How to read it</h2>
+  <h2>Start here: two leaderboards</h2>
+  <p class="sub">BitBudget measures two different things. Pick the one that matches what you built.</p>
+  <table class="orient">
+    <thead><tr><th>Leaderboard</th><th>The question it answers</th><th>Metric</th><th>You submit</th><th>You run</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>Compression</b> <span class="badge">primary</span></td>
+        <td>How much retrieval quality do you keep per <b>byte</b>?</td>
+        <td>nDCG@10 vs bytes/vec</td>
+        <td>a compressor (<code>@method</code>)</td>
+        <td><code>bitbudget run</code></td>
+      </tr>
+      <tr>
+        <td><b>Indexing</b></td>
+        <td>What query <b>throughput</b> at what recall and footprint?</td>
+        <td>recall@10 · QPS · bytes/vec</td>
+        <td>an index (<code>@index</code>)</td>
+        <td><code>bitbudget bench-index</code></td>
+      </tr>
+    </tbody>
+  </table>
   <div class="read">
-    Every method is a single design choice on one axis of the lens, and the benchmark asks what
-    quality it keeps per byte. At a matched footprint the <b>quantisation</b>-axis methods (binary,
-    PQ, RaBitQ) dominate the <b>projection</b>-axis ones (Matryoshka, PCA): <b>bits beat
-    dimensions</b>. A one-bit code with a re-ranking pass is <b>lossless at 32&times; compression</b>
-    on both embedders and at RAG scale on 8.8M passages. The <b>organisation</b>-axis methods
-    (HNSW, IVF-PQ) sit on a different trade-off: they buy query <b>throughput</b>, and a graph
-    <i>adds</i> bytes rather than removing them, which is why brute force manages only six queries
-    per second at ninety million vectors while HNSW restores interactive speed at full-precision
-    memory. The charts below place quality against footprint (compression) and recall against
-    throughput (organisation); lower-left to upper-right is the frontier in each.
+    Both are organised by the projection&ndash;quantisation&ndash;organisation lens.
+    <b>Compression</b> lives on the quantisation and projection axes (binary, PQ, RaBitQ, Matryoshka,
+    PCA): the headline is <b>bits beat dimensions</b>, and a one-bit code with re-ranking is lossless
+    at 32&times; on both embedders and at RAG scale. <b>Indexing</b> lives on the organisation axis
+    (HNSW, IVF-PQ, the bit-trie): a graph buys throughput but <i>adds</i> bytes, while a compact-code
+    index trades the other way. In every chart, lower-left to upper-right is the frontier. New here?
+    Start with the <b>primary</b> compression leaderboard.
   </div>
 </div></section>
 
 <section><div class="wrap">
-  <h2>Quality&ndash;footprint frontier</h2>
+  <h2>Compression leaderboard <span class="badge">primary</span></h2>
+  <div class="callout">
+    <span><b>Run:</b> <code>bitbudget run --embedder mxbai --corpus scifact nfcorpus arguana fiqa</code></span>
+    <span><b>Submit:</b> a compressor (<code>@method</code>)</span>
+  </div>
   <p class="sub" id="protocol"></p>
   <div class="tabs" id="tabs"></div>
   <div class="plotwrap">
     <svg id="plotMain" viewBox="0 0 720 380" preserveAspectRatio="xMidYMid meet"></svg>
     <div class="legend" id="legendMain"></div>
   </div>
-</div></section>
-
-<section><div class="wrap">
-  <h2>Leaderboard</h2>
-  <p class="sub">Click a column to sort. Footprint is bytes per vector; lower is better at equal quality.</p>
+  <p class="sub" style="margin-top:18px">Click a column to sort. Footprint is bytes per vector; lower is better at equal quality.</p>
   <table id="board">
     <thead><tr>
       <th class="sortable" data-k="method">Method</th>
@@ -136,8 +162,26 @@
 </div></section>
 
 <section><div class="wrap">
-  <h2>At scale</h2>
-  <p class="sub">The same crossovers, two orders of magnitude larger, measured on a single cloud machine.</p>
+  <h2>Indexing leaderboard</h2>
+  <div class="callout">
+    <span><b>Run:</b> <code>bitbudget bench-index --synthetic 100000 128</code></span>
+    <span><b>Submit:</b> an index (<code>@index</code>)</span>
+  </div>
+  <h3 id="idxtitle"></h3>
+  <p class="sub" id="idxnote"></p>
+  <div class="plotwrap">
+    <svg id="plotIdx" viewBox="0 0 720 380" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="legend" id="legendIdx"></div>
+  </div>
+  <table id="idxtbl"><thead><tr>
+    <th>Method</th><th>Axis</th><th class="num">Bytes/vec</th><th class="num">Recall@10</th><th class="num">QPS</th>
+  </tr></thead><tbody id="idxrows"></tbody></table>
+</div></section>
+
+<section><div class="wrap">
+  <h2>Validation at scale</h2>
+  <p class="sub">Not a separate leaderboard. Evidence that the headline results hold two orders of
+    magnitude larger, measured once on a single cloud machine. Nothing to submit here.</p>
 
   <h3 id="bigtitle"></h3>
   <p class="sub" id="bignote"></p>
@@ -157,31 +201,21 @@
 </div></section>
 
 <section><div class="wrap">
-  <h2 id="idxtitle"></h2>
-  <p class="sub" id="idxnote"></p>
-  <div class="plotwrap">
-    <svg id="plotIdx" viewBox="0 0 720 380" preserveAspectRatio="xMidYMid meet"></svg>
-    <div class="legend" id="legendIdx"></div>
-  </div>
-  <table id="idxtbl"><thead><tr>
-    <th>Method</th><th>Axis</th><th class="num">Bytes/vec</th><th class="num">Recall@10</th><th class="num">QPS</th>
-  </tr></thead><tbody id="idxrows"></tbody></table>
-</div></section>
-
-<section><div class="wrap">
-  <h2>Methods</h2>
-  <p class="sub">Each entry is a single design choice on one axis of the lens. Compression is reported as bytes per vector.</p>
+  <h2>Methods &amp; indexes</h2>
+  <p class="sub">Every entry on either leaderboard is a single design choice on one axis of the lens.</p>
   <div id="methods"></div>
 </div></section>
 
 <section><div class="wrap">
-  <h2>Submit your method</h2>
-  <p class="sub">The leaderboard is reproducible and open. To add a row:</p>
-  <ol>
-    <li>Register your method with the <code>@method(...)</code> decorator (see <a href="https://github.com/sjmoran/bitbudget/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a>).</li>
-    <li>Run <code>bitbudget run --embedder mxbai --corpus scifact nfcorpus arguana fiqa</code>.</li>
-    <li>Open a PR adding your row to <code>site/data.json</code> with the generated results card attached.</li>
-  </ol>
+  <h2>Submit your result</h2>
+  <p class="sub">Both leaderboards are reproducible and open. Pick the path that matches what you built:</p>
+  <p><b>A compressor</b> &rarr; register a <code>@method(...)</code>, run
+    <code>bitbudget run --embedder mxbai --corpus scifact nfcorpus arguana fiqa</code>, and open a PR
+    adding your row to the compression board in <code>site/data.json</code>.</p>
+  <p><b>An index</b> &rarr; register an <code>@index(...)</code>, run
+    <code>bitbudget bench-index --synthetic 100000 128</code> (or on your own vectors with
+    <code>--npz</code>), and open a PR adding your row to the indexing board in <code>site/data.json</code>.</p>
+  <p class="muted">See <a href="https://github.com/sjmoran/bitbudget/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a> for the decorators and the results-card format.</p>
   <p class="muted">Every number on this page is regenerated from <code>site/data.json</code> and
     deployed automatically on merge. No servers, no tracking.</p>
 </div></section>

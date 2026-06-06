@@ -21,8 +21,48 @@ def _cache_dir():
     return d
 
 
+def _brew_libomp():
+    """Return the Homebrew libomp prefix on macOS, or None."""
+    try:
+        p = subprocess.run(["brew", "--prefix", "libomp"], capture_output=True, text=True)
+        prefix = p.stdout.strip()
+        if p.returncode == 0 and prefix and os.path.isdir(prefix):
+            return prefix
+    except Exception:
+        pass
+    return None
+
+
+def _variants():
+    """(cflags, lflags) compile attempts, OpenMP first, single-thread C last."""
+    v = []
+    omp = _brew_libomp()
+    if omp:                                                    # macOS clang + Homebrew libomp (try first)
+        v.append((["-Xpreprocessor", "-fopenmp", f"-I{omp}/include"],
+                  [f"-L{omp}/lib", "-lomp", f"-Wl,-rpath,{omp}/lib"]))
+    v.append((["-fopenmp"], ["-fopenmp"]))                     # gcc / OpenMP-capable clang (Linux)
+    v.append(([], []))                                         # no OpenMP: single-threaded C
+    return v
+
+
+def _set_sig(lib):
+    f = lib.bt_query_batch
+    f.restype = None
+    P = ctypes.POINTER
+    f.argtypes = [P(ctypes.c_uint64), P(ctypes.c_int64), P(ctypes.c_float),
+                  P(ctypes.c_float), P(ctypes.c_float),
+                  ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+                  ctypes.c_int, ctypes.c_int, ctypes.c_int, P(ctypes.c_int64)]
+    return lib
+
+
 def get_lib():
-    """Return the loaded ctypes library exposing bt_query_batch, or None if unavailable."""
+    """Return the loaded ctypes library exposing bt_query_batch, or None if unavailable.
+
+    Tries to build a multithreaded (OpenMP) kernel first, falling back to single-threaded C,
+    then to None (the caller uses the numpy/Python path). The compiled library is cached by
+    source hash; set BITBUDGET_NO_OMP=1 to force the single-threaded build.
+    """
     global _LIB, _TRIED
     if _TRIED:
         return _LIB
@@ -32,23 +72,23 @@ def get_lib():
         return None
     h = hashlib.sha1(open(src, "rb").read()).hexdigest()[:12]
     so = os.path.join(_cache_dir(), f"_bittrie_{h}.so")
-    if not os.path.exists(so):
-        cc = os.environ.get("CC") or "cc"
-        cmd = [cc, "-O3", "-shared", "-fPIC", "-o", so, src, "-lm"]
+    if os.path.exists(so):                                     # cached: load directly
+        try:
+            _LIB = _set_sig(ctypes.CDLL(so)); return _LIB
+        except Exception:
+            try: os.remove(so)
+            except Exception: pass
+    cc = os.environ.get("CC") or "cc"
+    variants = [([], [])] if os.environ.get("BITBUDGET_NO_OMP") else _variants()
+    for cflags, lflags in variants:
+        cmd = [cc, "-O3", "-shared", "-fPIC", *cflags, "-o", so, src, *lflags, "-lm"]
         try:
             subprocess.run(cmd, check=True, capture_output=True)
         except Exception:
-            return None
-    try:
-        lib = ctypes.CDLL(so)
-        f = lib.bt_query_batch
-        f.restype = None
-        P = ctypes.POINTER
-        f.argtypes = [P(ctypes.c_uint64), P(ctypes.c_int64), P(ctypes.c_float),
-                      P(ctypes.c_float), P(ctypes.c_float),
-                      ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
-                      ctypes.c_int, ctypes.c_int, ctypes.c_int, P(ctypes.c_int64)]
-        _LIB = lib
-    except Exception:
-        _LIB = None
-    return _LIB
+            continue
+        try:                                                  # must actually load (libomp present at runtime)
+            _LIB = _set_sig(ctypes.CDLL(so)); return _LIB
+        except Exception:
+            try: os.remove(so)
+            except Exception: pass
+    return None

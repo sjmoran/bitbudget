@@ -85,8 +85,10 @@ def bittrie(xb, xq, k, nbits=64, beam=128, depth=24):
 
 # ----------------------------------------------------------------- harness
 def _exact(xb, xq, k, chunk=200000):
-    """Exact top-k by inner product, chunked over documents to bound memory."""
+    """Exact top-k by inner product, chunked over documents to bound memory. The chunk shrinks
+    as the query count grows so the (nq x chunk) score block stays small regardless of nq."""
     nq = len(xq)
+    chunk = max(1024, min(chunk, 20_000_000 // max(1, nq)))   # keep nq*chunk ~ 20M elements
     best_s = np.full((nq, k), -1e30, np.float32)
     best_i = np.zeros((nq, k), np.int64)
     for s in range(0, len(xb), chunk):
@@ -112,7 +114,11 @@ def bench_indexes(xb, xq, k=10, gt=None, which=None, verbose=True):
     if gt is None:
         gt = _exact(xb, xq, k)
     rows = []
-    for name in (which or list_indexes()):
+    # run faiss-backed indexes before the numpy bit-trie: the bit-trie loads its own OpenMP
+    # runtime (libomp) for the C kernel, which clashes with faiss's OpenMP if faiss runs after it
+    # in the same process (the macOS two-runtimes problem). Ordering it last avoids the clash.
+    names = sorted(which or list_indexes(), key=lambda n: (n == "bittrie", n))
+    for name in names:
         fn = INDEXES[name]
         try:
             I, bpv, qps = fn(xb, xq, k)

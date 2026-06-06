@@ -72,13 +72,13 @@
     }
   },
   "indexbench": {
-    "title": "Index benchmark — the bit-trie, head to head",
-    "note": "All four indexes on identical synthetic data (100k clustered vectors, 128-d), reproducible with `bitbudget bench-index --synthetic 100000 128`. The bit-trie routes on an 8-byte code and reaches graph-class recall at a fraction of the memory. Its QPS is the compiled C kernel (compiled on first use, ~22x the pure-Python loop and bit-identical to it); it is still single-threaded, so OpenMP and SIMD would close more of the remaining gap to faiss's HNSW. HNSW and IVF-PQ are faiss; QPS is single-thread.",
+    "title": "The bit-trie against the graph and IVF, on identical data",
+    "note": "All four indexes on identical synthetic data (100k clustered vectors, 128-d, 10k queries), reproducible with `bitbudget bench-index --synthetic 100000 128` (which runs the faiss indexes and the bit-trie in separate processes, then merges, to avoid the macOS OpenMP clash). The bit-trie routes on an 8-byte code and reaches graph-class recall at 88x less memory than HNSW. Its QPS is the multithreaded C kernel (compiled on first use, ~6x single-thread on 8 cores, bit-identical to the Python path). QPS is single-machine.",
     "rows": [
-      {"method": "bittrie", "axis": "quantisation",  "bytes": 8,   "recall": 0.982, "qps": 2881},
-      {"method": "ivfpq",   "axis": "organisation",  "bytes": 64,  "recall": 0.710, "qps": 30480},
-      {"method": "flat",    "axis": "organisation",  "bytes": 512, "recall": 1.000, "qps": 24128},
-      {"method": "hnsw",    "axis": "organisation",  "bytes": 704, "recall": 1.000, "qps": 53734}
+      {"method": "bittrie", "axis": "quantisation",  "bytes": 8,   "recall": 0.977, "qps": 16320},
+      {"method": "ivfpq",   "axis": "organisation",  "bytes": 64,  "recall": 0.712, "qps": 33745},
+      {"method": "flat",    "axis": "organisation",  "bytes": 512, "recall": 1.000, "qps": 27059},
+      {"method": "hnsw",    "axis": "organisation",  "bytes": 704, "recall": 1.000, "qps": 51895}
     ]
   }
 }

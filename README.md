@@ -61,8 +61,14 @@ faiss‑backed indexes need `pip install bitbudget[faiss]`; the numpy `bittrie` 
 
 The `bittrie` index ships a small C kernel (`_bittrie.c`) for the query hot‑path, compiled on
 first use and cached (no compiler needed to *install* — the wheel stays pure‑Python, and it falls
-back to numpy if no compiler is present). The C path is ~20× the pure‑Python loop and returns
-bit‑identical results; recall and footprint are algorithmic and unchanged either way.
+back to numpy if no compiler is present). It builds **multithreaded** when OpenMP is available
+(GCC/clang on Linux, Homebrew `libomp` on macOS) and single‑threaded otherwise; results are
+bit‑identical to the numpy path, and recall/footprint are algorithmic and unchanged either way.
+
+Because faiss carries its own OpenMP runtime, it cannot share a process with the bit‑trie's
+`libomp` on macOS. `bench-index` therefore runs the faiss indexes and the bit‑trie in **separate
+subprocesses** and merges the results, so a single `bitbudget bench-index ...` works everywhere
+(pass `--no-split` to force one process, e.g. on Linux where both share one OpenMP runtime).
 
 > **macOS note.** torch and faiss each bundle their own OpenMP runtime and crash if imported
 > in the same process. The core methods are numpy‑only, so `run` is safe; if you add a
