@@ -28,7 +28,7 @@
   .btn{background:var(--bg);border:1px solid var(--line);border-radius:6px;
     padding:7px 12px;font-size:13px;color:var(--ink)}
   .btn:hover{background:var(--soft);text-decoration:none}
-  section{padding:30px 0;border-bottom:1px solid var(--line)}
+  section{padding:30px 0;border-bottom:1px solid var(--line);scroll-margin-top:16px}
   h2{font-size:19px;margin:0 0 4px;font-weight:650}
   h3{font-size:15px;margin:22px 0 4px;font-weight:650}
   .sub{color:var(--mut);font-size:13px;margin:0 0 16px}
@@ -133,7 +133,8 @@
     at 32&times; on both embedders and at RAG scale. <b>Indexing</b> lives on the organisation axis
     (HNSW, IVF-PQ, the bit-trie): a graph buys throughput but <i>adds</i> bytes, while a compact-code
     index trades the other way. In every chart, lower-left to upper-right is the frontier. New here?
-    Start with the <b>primary</b> compression leaderboard.
+    Start with the <b>primary</b> compression leaderboard. Working with labels? See
+    <a href="#supervised">supervised hashing</a>, where the gains come from the projection axis.
   </div>
 </div></section>
 
@@ -201,7 +202,7 @@
   </tr></thead><tbody id="msrows"></tbody></table>
 </div></section>
 
-<section><div class="wrap">
+<section id="supervised"><div class="wrap">
   <h2>Supervised hashing</h2>
   <p class="sub">Not a separate leaderboard. The compression and indexing boards above are
     unsupervised; this is the other regime, where labels are available and a better
@@ -269,6 +270,9 @@ fetch("data.json").then(r=>r.json()).then(d=>{
   drawMain(); renderMain();
   drawScale();
   drawSupervised();
+  // content above is injected after load, which shifts layout; re-honour the URL fragment once
+  // everything is rendered so a deep link (e.g. #supervised) lands on the right section.
+  if(location.hash){const el=document.querySelector(location.hash); if(el) el.scrollIntoView();}
 });
 
 // ---- generic scatter with point-aligned ticks and label de-collision ----
