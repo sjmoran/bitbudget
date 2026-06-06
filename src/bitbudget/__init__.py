@@ -20,7 +20,9 @@ Then ``bitbudget run --embedder mxbai --corpus scifact`` scores it alongside the
 from .methods import method, METHODS, list_methods
 from .embedders import embedder, EMBEDDERS, list_embedders
 from .eval import evaluate
+from .indexes import index, INDEXES, list_indexes, bench_indexes
 
 __version__ = "0.1.0"
 __all__ = ["method", "METHODS", "list_methods", "embedder", "EMBEDDERS",
-           "list_embedders", "evaluate", "__version__"]
+           "list_embedders", "evaluate", "index", "INDEXES", "list_indexes",
+           "bench_indexes", "__version__"]

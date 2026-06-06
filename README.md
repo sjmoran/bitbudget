@@ -43,9 +43,21 @@ pip install "bitbudget[all]"     # + sentence-transformers (embedding) + faiss
 bitbudget methods                                   # list compression methods
 bitbudget run --embedder mxbai --corpus scifact     # embed + evaluate, print a results card
 bitbudget leaderboard results/card_*.json           # render a markdown leaderboard
+
+bitbudget indexes                                   # list indexes (organisation axis)
+bitbudget bench-index --synthetic 100000 128        # recall vs QPS vs bytes: flat/hnsw/ivfpq/bittrie
 ```
 
 `run` embeds (torch) and evaluates (numpy) in one process. The corpora auto‑download.
+
+### The organisation axis (`bench-index`)
+
+The compression leaderboard answers *quality per byte*; `bench-index` answers the orthogonal
+*recall per query-second*. It builds an index over the document vectors and reports recall@k,
+throughput (QPS) and bytes per vector, so HNSW and IVF‑PQ (which buy throughput and *add* bytes)
+can be compared against compact‑code indexes on one frontier. Run it on synthetic data, on a
+cached embedding (`--embedder mxbai --corpus scifact`), or on your own vectors (`--npz`). The
+faiss‑backed indexes need `pip install bitbudget[faiss]`; the numpy `bittrie` runs without it.
 
 > **macOS note.** torch and faiss each bundle their own OpenMP runtime and crash if imported
 > in the same process. The core methods are numpy‑only, so `run` is safe; if you add a

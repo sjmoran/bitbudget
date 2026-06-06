@@ -6,9 +6,12 @@
     bitbudget eval    --embedder mxbai --corpus scifact      # numpy step -> results card
     bitbudget run     --embedder mxbai --corpus scifact nfcorpus arguana fiqa   # embed + eval
     bitbudget leaderboard results/*.json           # aggregate cards into a markdown table
+    bitbudget indexes                              # list registered indexes (organisation axis)
+    bitbudget bench-index --synthetic 100000 128   # recall vs QPS vs bytes (flat/hnsw/ivfpq/bittrie)
 
 `run` embeds (torch) and evaluates (numpy) in one process, which is safe because the core
-methods use no faiss. If you add a faiss-backed method, run `embed` and `eval` separately.
+methods use no faiss. The faiss-backed indexes in `bench-index` import faiss only when run, so
+run it in its own process (no torch) to avoid the OpenMP clash.
 """
 import argparse
 import glob
@@ -20,6 +23,7 @@ import numpy as np
 from . import datasets
 from .eval import evaluate, aggregate
 from .methods import list_methods, METHODS
+from .indexes import bench_indexes, list_indexes, INDEXES
 
 
 def _emb_path(cache, embedder, corpus):
@@ -82,6 +86,43 @@ def cmd_methods(a):
         print(f"  {n:16s} {getattr(fn,'axis','?'):12s} {fn.bits}")
 
 
+def cmd_indexes(a):
+    print("registered indexes (name | axis):")
+    for n in list_indexes():
+        print(f"  {n:14s} {getattr(INDEXES[n], 'axis', 'organisation')}")
+
+
+def cmd_bench_index(a):
+    """Build each index over document vectors and report recall@k, QPS and bytes/vec."""
+    if a.synthetic:
+        N, D = a.synthetic
+        rng = np.random.RandomState(0)
+        centers = rng.randn(max(2, N // 500), D).astype(np.float32) * 4.0
+        xb = centers[rng.randint(0, len(centers), N)] + rng.randn(N, D).astype(np.float32)
+        nq = min(1000, max(1, N // 10))
+        xq = xb[rng.choice(N, nq, replace=False)] + 0.1 * rng.randn(nq, D).astype(np.float32)
+        label = f"synthetic N={N} D={D}"
+    elif a.npz:
+        z = np.load(os.path.expanduser(a.npz), allow_pickle=True)
+        xb = z["base"] if "base" in z.files else z["demb"]
+        xq = z["query"] if "query" in z.files else z["qemb"]
+        label = a.npz
+    elif a.embedder and a.corpus:
+        z = np.load(_emb_path(a.cache, a.embedder, a.corpus), allow_pickle=True)
+        xb, xq = z["demb"], z["qemb"]
+        label = f"{a.embedder} x {a.corpus}"
+    else:
+        raise SystemExit("bench-index needs one of: --synthetic N D | --npz PATH | --embedder X --corpus Y")
+    print(f"[bench-index] {label}: base={tuple(xb.shape)}, queries={len(xq)}, k={a.k}")
+    rows = bench_indexes(xb, xq, k=a.k, which=a.indexes)
+    os.makedirs(a.out, exist_ok=True)
+    card = dict(source=label, k=a.k, dim=int(xb.shape[1]), n=int(len(xb)), rows=rows)
+    path = os.path.join(a.out, "index_card.json")
+    json.dump(card, open(path, "w"), indent=2)
+    print(f"\nwrote index card -> {path}")
+    return card
+
+
 def cmd_embedders(a):
     from .embedders import list_embedders, EMBEDDERS
     print("registered embedders (name | dim | matryoshka):")
@@ -118,14 +159,27 @@ def main(argv=None):
         s.add_argument("--split", default="test")
     sub.add_parser("methods")
     sub.add_parser("embedders")
+    sub.add_parser("indexes")
     lb = sub.add_parser("leaderboard"); lb.add_argument("cards", nargs="+")
+    bi = sub.add_parser("bench-index")
+    bi.add_argument("--synthetic", nargs=2, type=int, metavar=("N", "D"),
+                    help="benchmark on N clustered Gaussian vectors of dimension D")
+    bi.add_argument("--npz", help="load base/query (keys base,query or demb,qemb) from an .npz")
+    bi.add_argument("--embedder", help="use a cached embedding (with --corpus): demb as base")
+    bi.add_argument("--corpus")
+    bi.add_argument("--cache", default="~/.cache/bitbudget")
+    bi.add_argument("--k", type=int, default=10)
+    bi.add_argument("--indexes", nargs="+", default=None, help="subset of indexes to run")
+    bi.add_argument("--out", default="results")
     a = p.parse_args(argv)
     if a.cmd == "embed":   cmd_embed(a)
     elif a.cmd == "eval":  cmd_eval(a)
     elif a.cmd == "run":   cmd_eval(a, _embed_first=True)
     elif a.cmd == "methods":     cmd_methods(a)
     elif a.cmd == "embedders":   cmd_embedders(a)
+    elif a.cmd == "indexes":     cmd_indexes(a)
     elif a.cmd == "leaderboard": cmd_leaderboard(a)
+    elif a.cmd == "bench-index": cmd_bench_index(a)
 
 
 if __name__ == "__main__":

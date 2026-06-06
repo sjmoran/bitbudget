@@ -95,6 +95,22 @@
 </div></header>
 
 <section><div class="wrap">
+  <h2>How to read it</h2>
+  <div class="read">
+    Every method is a single design choice on one axis of the lens, and the benchmark asks what
+    quality it keeps per byte. At a matched footprint the <b>quantisation</b>-axis methods (binary,
+    PQ, RaBitQ) dominate the <b>projection</b>-axis ones (Matryoshka, PCA): <b>bits beat
+    dimensions</b>. A one-bit code with a re-ranking pass is <b>lossless at 32&times; compression</b>
+    on both embedders and at RAG scale on 8.8M passages. The <b>organisation</b>-axis methods
+    (HNSW, IVF-PQ) sit on a different trade-off: they buy query <b>throughput</b>, and a graph
+    <i>adds</i> bytes rather than removing them, which is why brute force manages only six queries
+    per second at ninety million vectors while HNSW restores interactive speed at full-precision
+    memory. The charts below place quality against footprint (compression) and recall against
+    throughput (organisation); lower-left to upper-right is the frontier in each.
+  </div>
+</div></section>
+
+<section><div class="wrap">
   <h2>Quality&ndash;footprint frontier</h2>
   <p class="sub" id="protocol"></p>
   <div class="tabs" id="tabs"></div>
@@ -144,19 +160,6 @@
   <h2>Methods</h2>
   <p class="sub">Each entry is a single design choice on one axis of the lens. Compression is reported as bytes per vector.</p>
   <div id="methods"></div>
-</div></section>
-
-<section><div class="wrap">
-  <h2>How to read it</h2>
-  <div class="read">
-    At a matched footprint the <b>quantisation</b>-axis methods (binary, PQ, RaBitQ) dominate the
-    <b>projection</b>-axis ones (Matryoshka, PCA): <b>bits beat dimensions</b>. A one-bit code with a
-    re-ranking pass is <b>lossless at 32&times; compression</b> on both embedders and at RAG scale on
-    8.8M passages. The <b>organisation</b>-axis methods (HNSW, IVF-PQ) sit on a different trade-off:
-    they buy query <b>throughput</b>, and a graph <i>adds</i> bytes rather than removing them, which is
-    why brute force manages only six queries per second at ninety million vectors while HNSW restores
-    interactive speed at full-precision memory.
-  </div>
 </div></section>
 
 <section><div class="wrap">
