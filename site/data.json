@@ -9,7 +9,11 @@
     "pq":            {"axis": "quantisation", "desc": "Product Quantisation: split the vector into sub-vectors and encode each against a learned codebook, a few bytes per vector (Jegou et al., 2011)."},
     "rabitq":        {"axis": "quantisation", "desc": "A random rotation followed by 1-bit quantisation with an unbiased distance estimator, so a single 1-bit code both routes and ranks (Gao & Long, 2024)."},
     "matryoshka":    {"axis": "projection",   "desc": "Truncate a Matryoshka-trained embedding to its leading dimensions: fewer dimensions at full float precision (Kusupati et al., 2022)."},
-    "pca":           {"axis": "projection",   "desc": "Project onto the top principal components: the classic linear dimensionality reduction, fewer dimensions at float precision."}
+    "pca":           {"axis": "projection",   "desc": "Project onto the top principal components: the classic linear dimensionality reduction, fewer dimensions at float precision."},
+    "Exact (flat)":  {"axis": "organisation", "desc": "Brute-force exact search over full-precision vectors: the recall ceiling and, at scale, the throughput floor."},
+    "HNSW":          {"axis": "organisation", "desc": "A hierarchical navigable small-world graph. Stores the full vectors plus a graph, so it adds bytes but buys very high query throughput (Malkov & Yashunin, 2020)."},
+    "IVF-PQ":        {"axis": "organisation", "desc": "An inverted file over coarse centroids with product-quantised residuals: an order-of-magnitude smaller footprint at lower recall (Jegou et al., 2011)."},
+    "ITQ+rerank":    {"axis": "quantisation", "desc": "Iterative-quantisation binary codes (16 bytes) with full-precision re-ranking of a Hamming shortlist (Gong et al., 2011)."}
   },
   "embedders": [
     {
@@ -42,5 +46,28 @@
         {"method": "float32",       "axis": "none",         "bytes": 1536, "ndcg": 0.425, "pct": 100, "std": 0, "lossless": true}
       ]
     }
-  ]
+  ],
+  "scale": {
+    "bigann": {
+      "title": "90M BigANN SIFT1B — the organisation axis",
+      "note": "One method per family on a 90-million-vector slice of BigANN SIFT1B (128-d, exact ground truth), single machine, single-thread query timing. Recall@10 vs throughput vs footprint.",
+      "rows": [
+        {"method": "Exact (flat)", "axis": "organisation", "bytes": 512, "recall": 1.000, "qps": 6},
+        {"method": "HNSW",         "axis": "organisation", "bytes": 704, "recall": 0.966, "qps": 17448},
+        {"method": "IVF-PQ",       "axis": "organisation", "bytes": 64,  "recall": 0.829, "qps": 434},
+        {"method": "ITQ+rerank",   "axis": "quantisation", "bytes": 16,  "recall": 0.430, "qps": 120}
+      ]
+    },
+    "msmarco": {
+      "title": "MS MARCO 8.84M passages — compression at RAG scale",
+      "note": "The compression operators on the full MS MARCO passage corpus (8.84M passages, MiniLM-L6), nDCG@10 against graded judgements. A one-bit code with re-ranking is lossless at 32x, two orders of magnitude larger than the workstation corpora.",
+      "rows": [
+        {"method": "float32",       "axis": "none",         "bytes": 1536, "ndcg": 0.3653, "pct": 100, "lossless": true},
+        {"method": "int8",          "axis": "quantisation", "bytes": 384,  "ndcg": 0.3661, "pct": 100, "lossless": true},
+        {"method": "binary",        "axis": "quantisation", "bytes": 48,   "ndcg": 0.3412, "pct": 93,  "lossless": false},
+        {"method": "binary+rerank", "axis": "quantisation", "bytes": 48,   "ndcg": 0.3652, "pct": 100, "lossless": true},
+        {"method": "rabitq",        "axis": "quantisation", "bytes": 48,   "ndcg": 0.3408, "pct": 93,  "lossless": false}
+      ]
+    }
+  }
 }
