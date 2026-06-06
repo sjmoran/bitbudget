@@ -1,0 +1,359 @@
+{
+  "embedder": "minilm",
+  "corpora": [
+    "scifact",
+    "nfcorpus",
+    "arguana"
+  ],
+  "dim": 384,
+  "per_corpus": {
+    "scifact": [
+      {
+        "method": "binary",
+        "axis": "quantisation",
+        "bytes": 48.0,
+        "ndcg": 0.5867,
+        "recall": 0.5613,
+        "pct_float": 90.9
+      },
+      {
+        "method": "binary+rerank",
+        "axis": "quantisation",
+        "bytes": 48.0,
+        "ndcg": 0.6439,
+        "recall": 0.946,
+        "pct_float": 99.8
+      },
+      {
+        "method": "pq",
+        "axis": "quantisation",
+        "bytes": 48.0,
+        "ndcg": 0.6293,
+        "recall": 0.7437,
+        "pct_float": 97.5
+      },
+      {
+        "method": "rabitq",
+        "axis": "quantisation",
+        "bytes": 48.0,
+        "ndcg": 0.6034,
+        "recall": 0.6917,
+        "pct_float": 93.5
+      },
+      {
+        "method": "int4",
+        "axis": "quantisation",
+        "bytes": 192.0,
+        "ndcg": 0.653,
+        "recall": 0.9213,
+        "pct_float": 101.2
+      },
+      {
+        "method": "int8",
+        "axis": "quantisation",
+        "bytes": 384.0,
+        "ndcg": 0.6463,
+        "recall": 0.9933,
+        "pct_float": 100.2
+      },
+      {
+        "method": "matryoshka",
+        "axis": "projection",
+        "bytes": 384.0,
+        "ndcg": 0.5199,
+        "recall": 0.4547,
+        "pct_float": 80.6
+      },
+      {
+        "method": "pca",
+        "axis": "projection",
+        "bytes": 384.0,
+        "ndcg": 0.564,
+        "recall": 0.638,
+        "pct_float": 87.4
+      },
+      {
+        "method": "float16",
+        "axis": "quantisation",
+        "bytes": 768.0,
+        "ndcg": 0.6451,
+        "recall": 1.0,
+        "pct_float": 100.0
+      },
+      {
+        "method": "float32",
+        "axis": "none",
+        "bytes": 1536.0,
+        "ndcg": 0.6451,
+        "recall": 1.0,
+        "pct_float": 100.0
+      }
+    ],
+    "nfcorpus": [
+      {
+        "method": "binary",
+        "axis": "quantisation",
+        "bytes": 48.0,
+        "ndcg": 0.278,
+        "recall": 0.526,
+        "pct_float": 87.7
+      },
+      {
+        "method": "binary+rerank",
+        "axis": "quantisation",
+        "bytes": 48.0,
+        "ndcg": 0.3151,
+        "recall": 0.9164,
+        "pct_float": 99.5
+      },
+      {
+        "method": "pq",
+        "axis": "quantisation",
+        "bytes": 48.0,
+        "ndcg": 0.2995,
+        "recall": 0.7248,
+        "pct_float": 94.5
+      },
+      {
+        "method": "rabitq",
+        "axis": "quantisation",
+        "bytes": 48.0,
+        "ndcg": 0.2902,
+        "recall": 0.6502,
+        "pct_float": 91.6
+      },
+      {
+        "method": "int4",
+        "axis": "quantisation",
+        "bytes": 192.0,
+        "ndcg": 0.3127,
+        "recall": 0.9176,
+        "pct_float": 98.7
+      },
+      {
+        "method": "int8",
+        "axis": "quantisation",
+        "bytes": 384.0,
+        "ndcg": 0.3164,
+        "recall": 0.996,
+        "pct_float": 99.9
+      },
+      {
+        "method": "matryoshka",
+        "axis": "projection",
+        "bytes": 384.0,
+        "ndcg": 0.2436,
+        "recall": 0.405,
+        "pct_float": 76.9
+      },
+      {
+        "method": "pca",
+        "axis": "projection",
+        "bytes": 384.0,
+        "ndcg": 0.2372,
+        "recall": 0.4678,
+        "pct_float": 74.9
+      },
+      {
+        "method": "float16",
+        "axis": "quantisation",
+        "bytes": 768.0,
+        "ndcg": 0.3168,
+        "recall": 1.0,
+        "pct_float": 100.0
+      },
+      {
+        "method": "float32",
+        "axis": "none",
+        "bytes": 1536.0,
+        "ndcg": 0.3168,
+        "recall": 1.0,
+        "pct_float": 100.0
+      }
+    ],
+    "arguana": [
+      {
+        "method": "binary",
+        "axis": "quantisation",
+        "bytes": 48.0,
+        "ndcg": 0.3296,
+        "recall": 0.7565,
+        "pct_float": 88.8
+      },
+      {
+        "method": "binary+rerank",
+        "axis": "quantisation",
+        "bytes": 48.0,
+        "ndcg": 0.3714,
+        "recall": 0.9959,
+        "pct_float": 100.1
+      },
+      {
+        "method": "pq",
+        "axis": "quantisation",
+        "bytes": 48.0,
+        "ndcg": 0.3489,
+        "recall": 0.8311,
+        "pct_float": 94.0
+      },
+      {
+        "method": "rabitq",
+        "axis": "quantisation",
+        "bytes": 48.0,
+        "ndcg": 0.355,
+        "recall": 0.8203,
+        "pct_float": 95.7
+      },
+      {
+        "method": "int4",
+        "axis": "quantisation",
+        "bytes": 192.0,
+        "ndcg": 0.3721,
+        "recall": 0.9432,
+        "pct_float": 100.3
+      },
+      {
+        "method": "int8",
+        "axis": "quantisation",
+        "bytes": 384.0,
+        "ndcg": 0.3713,
+        "recall": 0.996,
+        "pct_float": 100.1
+      },
+      {
+        "method": "matryoshka",
+        "axis": "projection",
+        "bytes": 384.0,
+        "ndcg": 0.2834,
+        "recall": 0.6612,
+        "pct_float": 76.4
+      },
+      {
+        "method": "pca",
+        "axis": "projection",
+        "bytes": 384.0,
+        "ndcg": 0.3371,
+        "recall": 0.8097,
+        "pct_float": 90.8
+      },
+      {
+        "method": "float16",
+        "axis": "quantisation",
+        "bytes": 768.0,
+        "ndcg": 0.3711,
+        "recall": 0.9991,
+        "pct_float": 100.0
+      },
+      {
+        "method": "float32",
+        "axis": "none",
+        "bytes": 1536.0,
+        "ndcg": 0.3711,
+        "recall": 1.0,
+        "pct_float": 100.0
+      }
+    ]
+  },
+  "aggregate": [
+    {
+      "method": "binary",
+      "axis": "quantisation",
+      "bytes": 48.0,
+      "ndcg": 0.398,
+      "ndcg_std": 0.135,
+      "pct_float": 89.1,
+      "pct_float_std": 1.3,
+      "n_corpora": 3
+    },
+    {
+      "method": "binary+rerank",
+      "axis": "quantisation",
+      "bytes": 48.0,
+      "ndcg": 0.443,
+      "ndcg_std": 0.144,
+      "pct_float": 99.8,
+      "pct_float_std": 0.2,
+      "n_corpora": 3
+    },
+    {
+      "method": "pq",
+      "axis": "quantisation",
+      "bytes": 48.0,
+      "ndcg": 0.426,
+      "ndcg_std": 0.145,
+      "pct_float": 95.3,
+      "pct_float_std": 1.5,
+      "n_corpora": 3
+    },
+    {
+      "method": "rabitq",
+      "axis": "quantisation",
+      "bytes": 48.0,
+      "ndcg": 0.416,
+      "ndcg_std": 0.135,
+      "pct_float": 93.6,
+      "pct_float_std": 1.7,
+      "n_corpora": 3
+    },
+    {
+      "method": "int4",
+      "axis": "quantisation",
+      "bytes": 192.0,
+      "ndcg": 0.446,
+      "ndcg_std": 0.148,
+      "pct_float": 100.1,
+      "pct_float_std": 1.0,
+      "n_corpora": 3
+    },
+    {
+      "method": "int8",
+      "axis": "quantisation",
+      "bytes": 384.0,
+      "ndcg": 0.445,
+      "ndcg_std": 0.144,
+      "pct_float": 100.1,
+      "pct_float_std": 0.1,
+      "n_corpora": 3
+    },
+    {
+      "method": "matryoshka",
+      "axis": "projection",
+      "bytes": 384.0,
+      "ndcg": 0.349,
+      "ndcg_std": 0.122,
+      "pct_float": 78.0,
+      "pct_float_std": 1.9,
+      "n_corpora": 3
+    },
+    {
+      "method": "pca",
+      "axis": "projection",
+      "bytes": 384.0,
+      "ndcg": 0.379,
+      "ndcg_std": 0.137,
+      "pct_float": 84.4,
+      "pct_float_std": 6.8,
+      "n_corpora": 3
+    },
+    {
+      "method": "float16",
+      "axis": "quantisation",
+      "bytes": 768.0,
+      "ndcg": 0.444,
+      "ndcg_std": 0.144,
+      "pct_float": 100.0,
+      "pct_float_std": 0.0,
+      "n_corpora": 3
+    },
+    {
+      "method": "float32",
+      "axis": "none",
+      "bytes": 1536.0,
+      "ndcg": 0.444,
+      "ndcg_std": 0.144,
+      "pct_float": 100.0,
+      "pct_float_std": 0.0,
+      "n_corpora": 3
+    }
+  ]
+}

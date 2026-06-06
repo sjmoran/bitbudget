@@ -13,3 +13,7 @@ results/
 
 # editor / OS
 .DS_Store
+
+# transient board-build logs
+board_*_build.log
+board_openai_cards.log

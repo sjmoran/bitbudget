@@ -34,6 +34,10 @@ def cmd_embed(a):
     from .embedders import EMBEDDERS                      # lazy: imports torch
     emb = EMBEDDERS[a.embedder]
     for corpus in a.corpus:
+        path = _emb_path(a.cache, a.embedder, corpus)
+        if os.path.exists(path) and not getattr(a, "force", False):
+            print(f"[embed] cached (skip) -> {path}")   # re-use; pass --force to recompute
+            continue
         corp, queries, qrels = datasets.load(corpus, a.cache, a.split)
         cids, qids = list(corp), list(queries)
         print(f"[embed] {a.embedder} x {corpus}: {len(cids)} docs, {len(qids)} queries")
@@ -200,6 +204,7 @@ def main(argv=None):
         s.add_argument("--device", default="cpu", help="cpu | mps (embedding step)")
         s.add_argument("--batch-size", type=int, default=64)
         s.add_argument("--split", default="test")
+        s.add_argument("--force", action="store_true", help="recompute embeddings even if cached")
     sub.add_parser("methods")
     sub.add_parser("embedders")
     sub.add_parser("indexes")

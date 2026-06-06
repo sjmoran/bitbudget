@@ -37,11 +37,28 @@ def float32(demb, qemb):
     return qemb @ demb.T, 4 * demb.shape[1]
 
 
+@method("float16", bits=16, axis="quantisation")
+def float16(demb, qemb):
+    """Half precision: the cheapest, most widely deployed compression. 2x smaller, essentially
+    lossless, and natively supported by most vector stores."""
+    dq = demb.astype(np.float16).astype(np.float32)
+    return qemb @ dq.T, 2 * demb.shape[1]
+
+
 @method("int8", bits=8)
 def int8(demb, qemb):
     scale = np.abs(demb).max(0, keepdims=True) / 127.0 + 1e-9
     dq = np.round(demb / scale) * scale
     return qemb @ dq.T, demb.shape[1]
+
+
+@method("int4", bits=4)
+def int4(demb, qemb):
+    """4-bit per-dimension scalar quantisation (15 signed levels). Half the footprint of int8,
+    a common aggressive-but-not-binary operating point."""
+    scale = np.abs(demb).max(0, keepdims=True) / 7.0 + 1e-9
+    dq = np.clip(np.round(demb / scale), -7, 7) * scale
+    return qemb @ dq.T, demb.shape[1] / 2.0
 
 
 @method("binary", bits=1)
@@ -67,17 +84,25 @@ def rabitq(demb, qemb, seed=0):
 
 
 # ---------------------------------------------------------------- product quantisation (numpy)
-def _kmeans(X, k, iters=10, seed=0):
+def _kmeans(X, k, iters=10, seed=0, train_cap=16384):
+    """Lloyd's k-means with a vectorised centroid update (bincount per sub-dimension, no Python
+    loop over centroids) and a training subsample, as FAISS does, so PQ stays fast on large
+    corpora and high-dimensional embeddings. Centroids are learned on the subsample; the returned
+    assignment covers all of X."""
     rng = np.random.RandomState(seed)
-    C = X[rng.choice(len(X), size=min(k, len(X)), replace=False)].copy()
+    Xt = X if len(X) <= train_cap else X[rng.choice(len(X), train_cap, replace=False)]
+    C = Xt[rng.choice(len(Xt), size=min(k, len(Xt)), replace=False)].copy()
+    dim = Xt.shape[1]
     for _ in range(iters):
-        d = ((X ** 2).sum(1, keepdims=True) - 2 * X @ C.T + (C ** 2).sum(1))
-        a = d.argmin(1)
-        for j in range(len(C)):
-            m = a == j
-            if m.any():
-                C[j] = X[m].mean(0)
-    return C, a
+        a = ((Xt ** 2).sum(1, keepdims=True) - 2 * Xt @ C.T + (C ** 2).sum(1)).argmin(1)
+        counts = np.bincount(a, minlength=len(C))
+        sums = np.zeros((len(C), dim), dtype=np.float64)
+        for c in range(dim):                              # loop over the small sub-dimension only
+            sums[:, c] = np.bincount(a, weights=Xt[:, c], minlength=len(C))
+        nz = counts > 0
+        C[nz] = (sums[nz] / counts[nz, None]).astype(C.dtype)
+    aall = ((X ** 2).sum(1, keepdims=True) - 2 * X @ C.T + (C ** 2).sum(1)).argmin(1)
+    return C, aall
 
 
 @method("pq", bits=8, axis="quantisation")

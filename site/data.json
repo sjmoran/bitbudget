@@ -1,40 +1,669 @@
 {
   "updated": "2026-06-06",
-  "protocol": "nDCG@10 retained per byte, mean over BEIR corpora scifact, nfcorpus, arguana, fiqa. '% of float' is nDCG@10 relative to the uncompressed embedding; '±' is the standard deviation across the four corpora.",
+  "protocol": "nDCG@10 retained per byte, mean over three BEIR corpora (scifact, nfcorpus, arguana). '% of float' is nDCG@10 relative to the uncompressed embedding; '±' is the standard deviation across the corpora. Every row is reproducible with `bitbudget run --embedder <name> --corpus scifact nfcorpus arguana`.",
   "methods": {
-    "float32":       {"axis": "none",         "desc": "The uncompressed embedding stored as 32-bit floats (4 bytes per dimension). The baseline every other method is measured against."},
-    "int8":          {"axis": "quantisation", "desc": "Each coordinate linearly scaled to an 8-bit integer (1 byte per dimension). A 4x shrink that is essentially lossless."},
-    "binary":        {"axis": "quantisation", "desc": "Each coordinate replaced by its sign, one bit per dimension (32x smaller than float). Candidates ranked by Hamming distance."},
-    "binary+rerank": {"axis": "quantisation", "desc": "Binary Hamming search shortlists candidates, then the shortlist is re-scored with full-precision vectors. Recovers float-level quality while searching at the binary footprint."},
-    "pq":            {"axis": "quantisation", "desc": "Product Quantisation: split the vector into sub-vectors and encode each against a learned codebook, a few bytes per vector (Jegou et al., 2011)."},
-    "rabitq":        {"axis": "quantisation", "desc": "A random rotation followed by 1-bit quantisation with an unbiased distance estimator, so a single 1-bit code both routes and ranks (Gao & Long, 2024)."},
-    "matryoshka":    {"axis": "projection",   "desc": "Truncate a Matryoshka-trained embedding to its leading dimensions: fewer dimensions at full float precision (Kusupati et al., 2022)."},
-    "pca":           {"axis": "projection",   "desc": "Project onto the top principal components: the classic linear dimensionality reduction, fewer dimensions at float precision."},
-    "Exact (flat)":  {"axis": "organisation", "desc": "Brute-force exact search over full-precision vectors: the recall ceiling and, at scale, the throughput floor."},
-    "HNSW":          {"axis": "organisation", "desc": "A hierarchical navigable small-world graph. Stores the full vectors plus a graph, so it adds bytes but buys very high query throughput (Malkov & Yashunin, 2020)."},
-    "IVF-PQ":        {"axis": "organisation", "desc": "An inverted file over coarse centroids with product-quantised residuals: an order-of-magnitude smaller footprint at lower recall (Jegou et al., 2011)."},
-    "ITQ+rerank":    {"axis": "quantisation", "desc": "Iterative-quantisation binary codes (16 bytes) with full-precision re-ranking of a Hamming shortlist (Gong et al., 2011)."},
-    "bittrie":       {"axis": "quantisation", "desc": "A van Emde Boas / PATRICIA radix-trie over compact sign-codes: the sorted code array is the trie, searched coarse-to-fine, then re-ranked. Routes on an 8-byte code, reaching graph-class recall at a fraction of a graph's memory (research entry; see bitbudget bench-index)."},
-    "LSH":           {"axis": "projection",   "desc": "Random hyperplane projections, one sign-bit each: a data-oblivious code. The baseline the learned projections improve on (Charikar, 2002)."},
-    "ITQ":           {"axis": "projection",   "desc": "Iterative Quantisation: an unsupervised learned rotation that aligns the principal axes to the binary hypercube before thresholding (Gong et al., 2011)."},
-    "GRH":           {"axis": "projection",   "desc": "Graph Regularised Hashing: a signed label graph (same-class must-link, different-class cannot-link) shapes the projection, a supervised binary code (Moran & Lavrenko, 2015)."},
-    "KSH":           {"axis": "projection",   "desc": "Supervised Hashing with Kernels: a kernel map to anchors whose bits are learned sequentially against a supervised similarity residue (Liu et al., 2012)."},
-    "DPSH (deep)":   {"axis": "projection",   "desc": "Deep Pairwise-Supervised Hashing: a neural hash head trained with a pairwise likelihood and a quantisation penalty, coupling the projection and quantisation in one learned network (Li et al., 2016). Here a two-stage head over the same frozen features and labels as GRH/KSH."}
+    "float32": {
+      "axis": "none",
+      "desc": "The uncompressed embedding stored as 32-bit floats (4 bytes per dimension). The baseline every other method is measured against."
+    },
+    "int8": {
+      "axis": "quantisation",
+      "desc": "Each coordinate linearly scaled to an 8-bit integer (1 byte per dimension). A 4x shrink that is essentially lossless."
+    },
+    "binary": {
+      "axis": "quantisation",
+      "desc": "Each coordinate replaced by its sign, one bit per dimension (32x smaller than float). Candidates ranked by Hamming distance."
+    },
+    "binary+rerank": {
+      "axis": "quantisation",
+      "desc": "Binary Hamming search shortlists candidates, then the shortlist is re-scored with full-precision vectors. Recovers float-level quality while searching at the binary footprint."
+    },
+    "pq": {
+      "axis": "quantisation",
+      "desc": "Product Quantisation: split the vector into sub-vectors and encode each against a learned codebook, a few bytes per vector (Jegou et al., 2011)."
+    },
+    "rabitq": {
+      "axis": "quantisation",
+      "desc": "A random rotation followed by 1-bit quantisation with an unbiased distance estimator, so a single 1-bit code both routes and ranks (Gao & Long, 2024)."
+    },
+    "matryoshka": {
+      "axis": "projection",
+      "desc": "Truncate a Matryoshka-trained embedding to its leading dimensions: fewer dimensions at full float precision (Kusupati et al., 2022)."
+    },
+    "pca": {
+      "axis": "projection",
+      "desc": "Project onto the top principal components: the classic linear dimensionality reduction, fewer dimensions at float precision."
+    },
+    "Exact (flat)": {
+      "axis": "organisation",
+      "desc": "Brute-force exact search over full-precision vectors: the recall ceiling and, at scale, the throughput floor."
+    },
+    "HNSW": {
+      "axis": "organisation",
+      "desc": "A hierarchical navigable small-world graph. Stores the full vectors plus a graph, so it adds bytes but buys very high query throughput (Malkov & Yashunin, 2020)."
+    },
+    "IVF-PQ": {
+      "axis": "organisation",
+      "desc": "An inverted file over coarse centroids with product-quantised residuals: an order-of-magnitude smaller footprint at lower recall (Jegou et al., 2011)."
+    },
+    "ITQ+rerank": {
+      "axis": "quantisation",
+      "desc": "Iterative-quantisation binary codes (16 bytes) with full-precision re-ranking of a Hamming shortlist (Gong et al., 2011)."
+    },
+    "bittrie": {
+      "axis": "quantisation",
+      "desc": "A van Emde Boas / PATRICIA radix-trie over compact sign-codes: the sorted code array is the trie, searched coarse-to-fine, then re-ranked. Routes on an 8-byte code, reaching graph-class recall at a fraction of a graph's memory (research entry; see bitbudget bench-index)."
+    },
+    "LSH": {
+      "axis": "projection",
+      "desc": "Random hyperplane projections, one sign-bit each: a data-oblivious code. The baseline the learned projections improve on (Charikar, 2002)."
+    },
+    "ITQ": {
+      "axis": "projection",
+      "desc": "Iterative Quantisation: an unsupervised learned rotation that aligns the principal axes to the binary hypercube before thresholding (Gong et al., 2011)."
+    },
+    "GRH": {
+      "axis": "projection",
+      "desc": "Graph Regularised Hashing: a signed label graph (same-class must-link, different-class cannot-link) shapes the projection, a supervised binary code (Moran & Lavrenko, 2015)."
+    },
+    "KSH": {
+      "axis": "projection",
+      "desc": "Supervised Hashing with Kernels: a kernel map to anchors whose bits are learned sequentially against a supervised similarity residue (Liu et al., 2012)."
+    },
+    "DPSH (deep)": {
+      "axis": "projection",
+      "desc": "Deep Pairwise-Supervised Hashing: a neural hash head trained with a pairwise likelihood and a quantisation penalty, coupling the projection and quantisation in one learned network (Li et al., 2016). Here a two-stage head over the same frozen features and labels as GRH/KSH."
+    },
+    "float16": {
+      "axis": "quantisation",
+      "desc": "Half precision: each coordinate as a 16-bit float (2x smaller). The cheapest, most widely deployed compression, and essentially lossless."
+    },
+    "int4": {
+      "axis": "quantisation",
+      "desc": "4-bit per-dimension scalar quantisation (15 signed levels): half the footprint of int8, an aggressive-but-not-binary operating point."
+    }
   },
   "embedders": [
     {
+      "name": "text-embedding-3-small",
+      "dim": 1536,
+      "note": "1536-d · hosted · Matryoshka",
+      "rows": [
+        {
+          "method": "binary",
+          "axis": "quantisation",
+          "bytes": 192,
+          "ndcg": 0.488,
+          "pct": 95.8,
+          "std": 0.9,
+          "lossless": false
+        },
+        {
+          "method": "binary+rerank",
+          "axis": "quantisation",
+          "bytes": 192,
+          "ndcg": 0.509,
+          "pct": 100.0,
+          "std": 0.0,
+          "lossless": true
+        },
+        {
+          "method": "pq",
+          "axis": "quantisation",
+          "bytes": 192,
+          "ndcg": 0.496,
+          "pct": 97.6,
+          "std": 1.2,
+          "lossless": false
+        },
+        {
+          "method": "rabitq",
+          "axis": "quantisation",
+          "bytes": 192,
+          "ndcg": 0.496,
+          "pct": 97.8,
+          "std": 0.7,
+          "lossless": false
+        },
+        {
+          "method": "int4",
+          "axis": "quantisation",
+          "bytes": 768,
+          "ndcg": 0.509,
+          "pct": 100.1,
+          "std": 0.6,
+          "lossless": true
+        },
+        {
+          "method": "int8",
+          "axis": "quantisation",
+          "bytes": 1536,
+          "ndcg": 0.508,
+          "pct": 100.0,
+          "std": 0.1,
+          "lossless": true
+        },
+        {
+          "method": "matryoshka",
+          "axis": "projection",
+          "bytes": 1536,
+          "ndcg": 0.491,
+          "pct": 96.1,
+          "std": 1.6,
+          "lossless": false
+        },
+        {
+          "method": "pca",
+          "axis": "projection",
+          "bytes": 1536,
+          "ndcg": 0.483,
+          "pct": 94.7,
+          "std": 3.7,
+          "lossless": false
+        },
+        {
+          "method": "float16",
+          "axis": "quantisation",
+          "bytes": 3072,
+          "ndcg": 0.508,
+          "pct": 100.0,
+          "std": 0.0,
+          "lossless": true
+        },
+        {
+          "method": "float32",
+          "axis": "none",
+          "bytes": 6144,
+          "ndcg": 0.508,
+          "pct": 100.0,
+          "std": 0.0,
+          "lossless": true
+        }
+      ]
+    },
+    {
+      "name": "text-embedding-3-large",
+      "dim": 3072,
+      "note": "3072-d · hosted · Matryoshka",
+      "rows": [
+        {
+          "method": "binary",
+          "axis": "quantisation",
+          "bytes": 384,
+          "ndcg": 0.536,
+          "pct": 98.8,
+          "std": 0.5,
+          "lossless": false
+        },
+        {
+          "method": "binary+rerank",
+          "axis": "quantisation",
+          "bytes": 384,
+          "ndcg": 0.543,
+          "pct": 100.0,
+          "std": 0.0,
+          "lossless": true
+        },
+        {
+          "method": "pq",
+          "axis": "quantisation",
+          "bytes": 384,
+          "ndcg": 0.535,
+          "pct": 98.6,
+          "std": 0.6,
+          "lossless": false
+        },
+        {
+          "method": "rabitq",
+          "axis": "quantisation",
+          "bytes": 384,
+          "ndcg": 0.535,
+          "pct": 98.6,
+          "std": 0.5,
+          "lossless": false
+        },
+        {
+          "method": "int4",
+          "axis": "quantisation",
+          "bytes": 1536,
+          "ndcg": 0.541,
+          "pct": 99.6,
+          "std": 0.2,
+          "lossless": true
+        },
+        {
+          "method": "int8",
+          "axis": "quantisation",
+          "bytes": 3072,
+          "ndcg": 0.543,
+          "pct": 100.0,
+          "std": 0.0,
+          "lossless": true
+        },
+        {
+          "method": "matryoshka",
+          "axis": "projection",
+          "bytes": 3072,
+          "ndcg": 0.527,
+          "pct": 96.9,
+          "std": 1.3,
+          "lossless": false
+        },
+        {
+          "method": "pca",
+          "axis": "projection",
+          "bytes": 3072,
+          "ndcg": 0.523,
+          "pct": 96.2,
+          "std": 3.2,
+          "lossless": false
+        },
+        {
+          "method": "float16",
+          "axis": "quantisation",
+          "bytes": 6144,
+          "ndcg": 0.543,
+          "pct": 100.0,
+          "std": 0.0,
+          "lossless": true
+        },
+        {
+          "method": "float32",
+          "axis": "none",
+          "bytes": 12288,
+          "ndcg": 0.543,
+          "pct": 100.0,
+          "std": 0.0,
+          "lossless": true
+        }
+      ]
+    },
+    {
       "name": "mxbai-embed-large",
       "dim": 1024,
-      "note": "1024-d, Matryoshka",
+      "note": "1024-d · Matryoshka",
       "rows": [
-        {"method": "binary",        "axis": "quantisation", "bytes": 128,  "ndcg": 0.469, "pct": 92,  "std": 2, "lossless": false},
-        {"method": "binary+rerank", "axis": "quantisation", "bytes": 128,  "ndcg": 0.509, "pct": 100, "std": 0, "lossless": true},
-        {"method": "pq",            "axis": "quantisation", "bytes": 128,  "ndcg": 0.488, "pct": 96,  "std": 2, "lossless": false},
-        {"method": "rabitq",        "axis": "quantisation", "bytes": 128,  "ndcg": 0.487, "pct": 96,  "std": 2, "lossless": false},
-        {"method": "int8",          "axis": "quantisation", "bytes": 1024, "ndcg": 0.509, "pct": 100, "std": 0, "lossless": true},
-        {"method": "matryoshka",    "axis": "projection",   "bytes": 1024, "ndcg": 0.439, "pct": 86,  "std": 4, "lossless": false},
-        {"method": "pca",           "axis": "projection",   "bytes": 1024, "ndcg": 0.450, "pct": 88,  "std": 6, "lossless": false},
-        {"method": "float32",       "axis": "none",         "bytes": 4096, "ndcg": 0.508, "pct": 100, "std": 0, "lossless": true}
+        {
+          "method": "binary",
+          "axis": "quantisation",
+          "bytes": 128,
+          "ndcg": 0.491,
+          "pct": 92.6,
+          "std": 1.9,
+          "lossless": false
+        },
+        {
+          "method": "binary+rerank",
+          "axis": "quantisation",
+          "bytes": 128,
+          "ndcg": 0.53,
+          "pct": 100.2,
+          "std": 0.2,
+          "lossless": true
+        },
+        {
+          "method": "pq",
+          "axis": "quantisation",
+          "bytes": 128,
+          "ndcg": 0.514,
+          "pct": 97.1,
+          "std": 0.9,
+          "lossless": false
+        },
+        {
+          "method": "rabitq",
+          "axis": "quantisation",
+          "bytes": 128,
+          "ndcg": 0.511,
+          "pct": 96.5,
+          "std": 1.1,
+          "lossless": false
+        },
+        {
+          "method": "int4",
+          "axis": "quantisation",
+          "bytes": 512,
+          "ndcg": 0.527,
+          "pct": 99.8,
+          "std": 0.4,
+          "lossless": true
+        },
+        {
+          "method": "int8",
+          "axis": "quantisation",
+          "bytes": 1024,
+          "ndcg": 0.53,
+          "pct": 100.2,
+          "std": 0.1,
+          "lossless": true
+        },
+        {
+          "method": "matryoshka",
+          "axis": "projection",
+          "bytes": 1024,
+          "ndcg": 0.466,
+          "pct": 88.4,
+          "std": 1.4,
+          "lossless": false
+        },
+        {
+          "method": "pca",
+          "axis": "projection",
+          "bytes": 1024,
+          "ndcg": 0.48,
+          "pct": 89.7,
+          "std": 4.8,
+          "lossless": false
+        },
+        {
+          "method": "float16",
+          "axis": "quantisation",
+          "bytes": 2048,
+          "ndcg": 0.528,
+          "pct": 100.0,
+          "std": 0.0,
+          "lossless": true
+        },
+        {
+          "method": "float32",
+          "axis": "none",
+          "bytes": 4096,
+          "ndcg": 0.528,
+          "pct": 100.0,
+          "std": 0.0,
+          "lossless": true
+        }
+      ]
+    },
+    {
+      "name": "bge-base-en-v1.5",
+      "dim": 768,
+      "note": "768-d",
+      "rows": [
+        {
+          "method": "binary",
+          "axis": "quantisation",
+          "bytes": 96,
+          "ndcg": 0.466,
+          "pct": 89.2,
+          "std": 0.3,
+          "lossless": false
+        },
+        {
+          "method": "binary+rerank",
+          "axis": "quantisation",
+          "bytes": 96,
+          "ndcg": 0.522,
+          "pct": 99.8,
+          "std": 0.2,
+          "lossless": true
+        },
+        {
+          "method": "pq",
+          "axis": "quantisation",
+          "bytes": 96,
+          "ndcg": 0.506,
+          "pct": 96.6,
+          "std": 1.1,
+          "lossless": false
+        },
+        {
+          "method": "rabitq",
+          "axis": "quantisation",
+          "bytes": 96,
+          "ndcg": 0.492,
+          "pct": 93.7,
+          "std": 1.5,
+          "lossless": false
+        },
+        {
+          "method": "int4",
+          "axis": "quantisation",
+          "bytes": 384,
+          "ndcg": 0.52,
+          "pct": 99.3,
+          "std": 0.3,
+          "lossless": false
+        },
+        {
+          "method": "int8",
+          "axis": "quantisation",
+          "bytes": 768,
+          "ndcg": 0.522,
+          "pct": 99.9,
+          "std": 0.1,
+          "lossless": true
+        },
+        {
+          "method": "matryoshka",
+          "axis": "projection",
+          "bytes": 768,
+          "ndcg": 0.43,
+          "pct": 81.4,
+          "std": 3.0,
+          "lossless": false
+        },
+        {
+          "method": "pca",
+          "axis": "projection",
+          "bytes": 768,
+          "ndcg": 0.462,
+          "pct": 87.2,
+          "std": 4.8,
+          "lossless": false
+        },
+        {
+          "method": "float16",
+          "axis": "quantisation",
+          "bytes": 1536,
+          "ndcg": 0.523,
+          "pct": 100.0,
+          "std": 0.0,
+          "lossless": true
+        },
+        {
+          "method": "float32",
+          "axis": "none",
+          "bytes": 3072,
+          "ndcg": 0.523,
+          "pct": 100.0,
+          "std": 0.0,
+          "lossless": true
+        }
+      ]
+    },
+    {
+      "name": "gte-base",
+      "dim": 768,
+      "note": "768-d",
+      "rows": [
+        {
+          "method": "binary",
+          "axis": "quantisation",
+          "bytes": 96,
+          "ndcg": 0.453,
+          "pct": 87.0,
+          "std": 2.7,
+          "lossless": false
+        },
+        {
+          "method": "binary+rerank",
+          "axis": "quantisation",
+          "bytes": 96,
+          "ndcg": 0.515,
+          "pct": 99.7,
+          "std": 0.6,
+          "lossless": true
+        },
+        {
+          "method": "pq",
+          "axis": "quantisation",
+          "bytes": 96,
+          "ndcg": 0.481,
+          "pct": 93.1,
+          "std": 1.2,
+          "lossless": false
+        },
+        {
+          "method": "rabitq",
+          "axis": "quantisation",
+          "bytes": 96,
+          "ndcg": 0.484,
+          "pct": 93.1,
+          "std": 1.8,
+          "lossless": false
+        },
+        {
+          "method": "int4",
+          "axis": "quantisation",
+          "bytes": 384,
+          "ndcg": 0.511,
+          "pct": 98.6,
+          "std": 1.2,
+          "lossless": false
+        },
+        {
+          "method": "int8",
+          "axis": "quantisation",
+          "bytes": 768,
+          "ndcg": 0.515,
+          "pct": 99.8,
+          "std": 0.1,
+          "lossless": true
+        },
+        {
+          "method": "matryoshka",
+          "axis": "projection",
+          "bytes": 768,
+          "ndcg": 0.363,
+          "pct": 69.0,
+          "std": 5.2,
+          "lossless": false
+        },
+        {
+          "method": "pca",
+          "axis": "projection",
+          "bytes": 768,
+          "ndcg": 0.471,
+          "pct": 90.4,
+          "std": 3.9,
+          "lossless": false
+        },
+        {
+          "method": "float16",
+          "axis": "quantisation",
+          "bytes": 1536,
+          "ndcg": 0.517,
+          "pct": 100.0,
+          "std": 0.0,
+          "lossless": true
+        },
+        {
+          "method": "float32",
+          "axis": "none",
+          "bytes": 3072,
+          "ndcg": 0.517,
+          "pct": 100.0,
+          "std": 0.0,
+          "lossless": true
+        }
+      ]
+    },
+    {
+      "name": "e5-base-v2",
+      "dim": 768,
+      "note": "768-d",
+      "rows": [
+        {
+          "method": "binary",
+          "axis": "quantisation",
+          "bytes": 96,
+          "ndcg": 0.253,
+          "pct": 52.7,
+          "std": 7.5,
+          "lossless": false
+        },
+        {
+          "method": "binary+rerank",
+          "axis": "quantisation",
+          "bytes": 96,
+          "ndcg": 0.419,
+          "pct": 90.4,
+          "std": 2.2,
+          "lossless": false
+        },
+        {
+          "method": "pq",
+          "axis": "quantisation",
+          "bytes": 96,
+          "ndcg": 0.419,
+          "pct": 90.5,
+          "std": 2.5,
+          "lossless": false
+        },
+        {
+          "method": "rabitq",
+          "axis": "quantisation",
+          "bytes": 96,
+          "ndcg": 0.377,
+          "pct": 81.1,
+          "std": 3.1,
+          "lossless": false
+        },
+        {
+          "method": "int4",
+          "axis": "quantisation",
+          "bytes": 384,
+          "ndcg": 0.453,
+          "pct": 98.2,
+          "std": 1.5,
+          "lossless": false
+        },
+        {
+          "method": "int8",
+          "axis": "quantisation",
+          "bytes": 768,
+          "ndcg": 0.46,
+          "pct": 100.0,
+          "std": 0.2,
+          "lossless": true
+        },
+        {
+          "method": "matryoshka",
+          "axis": "projection",
+          "bytes": 768,
+          "ndcg": 0.234,
+          "pct": 51.5,
+          "std": 1.9,
+          "lossless": false
+        },
+        {
+          "method": "pca",
+          "axis": "projection",
+          "bytes": 768,
+          "ndcg": 0.391,
+          "pct": 82.8,
+          "std": 5.4,
+          "lossless": false
+        },
+        {
+          "method": "float16",
+          "axis": "quantisation",
+          "bytes": 1536,
+          "ndcg": 0.46,
+          "pct": 100.0,
+          "std": 0.0,
+          "lossless": true
+        },
+        {
+          "method": "float32",
+          "axis": "none",
+          "bytes": 3072,
+          "ndcg": 0.461,
+          "pct": 100.0,
+          "std": 0.0,
+          "lossless": true
+        }
       ]
     },
     {
@@ -42,14 +671,96 @@
       "dim": 384,
       "note": "384-d",
       "rows": [
-        {"method": "binary",        "axis": "quantisation", "bytes": 48,   "ndcg": 0.375, "pct": 88,  "std": 3, "lossless": false},
-        {"method": "binary+rerank", "axis": "quantisation", "bytes": 48,   "ndcg": 0.424, "pct": 100, "std": 0, "lossless": true},
-        {"method": "pq",            "axis": "quantisation", "bytes": 48,   "ndcg": 0.401, "pct": 94,  "std": 3, "lossless": false},
-        {"method": "rabitq",        "axis": "quantisation", "bytes": 48,   "ndcg": 0.397, "pct": 93,  "std": 2, "lossless": false},
-        {"method": "int8",          "axis": "quantisation", "bytes": 384,  "ndcg": 0.426, "pct": 100, "std": 0, "lossless": true},
-        {"method": "matryoshka",    "axis": "projection",   "bytes": 384,  "ndcg": 0.324, "pct": 75,  "std": 5, "lossless": false},
-        {"method": "pca",           "axis": "projection",   "bytes": 384,  "ndcg": 0.358, "pct": 83,  "std": 6, "lossless": false},
-        {"method": "float32",       "axis": "none",         "bytes": 1536, "ndcg": 0.425, "pct": 100, "std": 0, "lossless": true}
+        {
+          "method": "binary",
+          "axis": "quantisation",
+          "bytes": 48,
+          "ndcg": 0.398,
+          "pct": 89.1,
+          "std": 1.3,
+          "lossless": false
+        },
+        {
+          "method": "binary+rerank",
+          "axis": "quantisation",
+          "bytes": 48,
+          "ndcg": 0.443,
+          "pct": 99.8,
+          "std": 0.2,
+          "lossless": true
+        },
+        {
+          "method": "pq",
+          "axis": "quantisation",
+          "bytes": 48,
+          "ndcg": 0.426,
+          "pct": 95.3,
+          "std": 1.5,
+          "lossless": false
+        },
+        {
+          "method": "rabitq",
+          "axis": "quantisation",
+          "bytes": 48,
+          "ndcg": 0.416,
+          "pct": 93.6,
+          "std": 1.7,
+          "lossless": false
+        },
+        {
+          "method": "int4",
+          "axis": "quantisation",
+          "bytes": 192,
+          "ndcg": 0.446,
+          "pct": 100.1,
+          "std": 1.0,
+          "lossless": true
+        },
+        {
+          "method": "int8",
+          "axis": "quantisation",
+          "bytes": 384,
+          "ndcg": 0.445,
+          "pct": 100.1,
+          "std": 0.1,
+          "lossless": true
+        },
+        {
+          "method": "matryoshka",
+          "axis": "projection",
+          "bytes": 384,
+          "ndcg": 0.349,
+          "pct": 78.0,
+          "std": 1.9,
+          "lossless": false
+        },
+        {
+          "method": "pca",
+          "axis": "projection",
+          "bytes": 384,
+          "ndcg": 0.379,
+          "pct": 84.4,
+          "std": 6.8,
+          "lossless": false
+        },
+        {
+          "method": "float16",
+          "axis": "quantisation",
+          "bytes": 768,
+          "ndcg": 0.444,
+          "pct": 100.0,
+          "std": 0.0,
+          "lossless": true
+        },
+        {
+          "method": "float32",
+          "axis": "none",
+          "bytes": 1536,
+          "ndcg": 0.444,
+          "pct": 100.0,
+          "std": 0.0,
+          "lossless": true
+        }
       ]
     }
   ],
@@ -58,21 +769,80 @@
       "title": "90M BigANN SIFT1B — the organisation axis",
       "note": "One method per family on a 90-million-vector slice of BigANN SIFT1B (128-d, exact ground truth), single machine, single-thread query timing. Recall@10 vs throughput vs footprint.",
       "rows": [
-        {"method": "Exact (flat)", "axis": "organisation", "bytes": 512, "recall": 1.000, "qps": 6},
-        {"method": "HNSW",         "axis": "organisation", "bytes": 704, "recall": 0.966, "qps": 17448},
-        {"method": "IVF-PQ",       "axis": "organisation", "bytes": 64,  "recall": 0.829, "qps": 434},
-        {"method": "ITQ+rerank",   "axis": "quantisation", "bytes": 16,  "recall": 0.430, "qps": 120}
+        {
+          "method": "Exact (flat)",
+          "axis": "organisation",
+          "bytes": 512,
+          "recall": 1.0,
+          "qps": 6
+        },
+        {
+          "method": "HNSW",
+          "axis": "organisation",
+          "bytes": 704,
+          "recall": 0.966,
+          "qps": 17448
+        },
+        {
+          "method": "IVF-PQ",
+          "axis": "organisation",
+          "bytes": 64,
+          "recall": 0.829,
+          "qps": 434
+        },
+        {
+          "method": "ITQ+rerank",
+          "axis": "quantisation",
+          "bytes": 16,
+          "recall": 0.43,
+          "qps": 120
+        }
       ]
     },
     "msmarco": {
       "title": "MS MARCO 8.84M passages — compression at RAG scale",
       "note": "The compression operators on the full MS MARCO passage corpus (8.84M passages, MiniLM-L6), nDCG@10 against graded judgements. A one-bit code with re-ranking is lossless at 32x, two orders of magnitude larger than the workstation corpora.",
       "rows": [
-        {"method": "float32",       "axis": "none",         "bytes": 1536, "ndcg": 0.3653, "pct": 100, "lossless": true},
-        {"method": "int8",          "axis": "quantisation", "bytes": 384,  "ndcg": 0.3661, "pct": 100, "lossless": true},
-        {"method": "binary",        "axis": "quantisation", "bytes": 48,   "ndcg": 0.3412, "pct": 93,  "lossless": false},
-        {"method": "binary+rerank", "axis": "quantisation", "bytes": 48,   "ndcg": 0.3652, "pct": 100, "lossless": true},
-        {"method": "rabitq",        "axis": "quantisation", "bytes": 48,   "ndcg": 0.3408, "pct": 93,  "lossless": false}
+        {
+          "method": "float32",
+          "axis": "none",
+          "bytes": 1536,
+          "ndcg": 0.3653,
+          "pct": 100,
+          "lossless": true
+        },
+        {
+          "method": "int8",
+          "axis": "quantisation",
+          "bytes": 384,
+          "ndcg": 0.3661,
+          "pct": 100,
+          "lossless": true
+        },
+        {
+          "method": "binary",
+          "axis": "quantisation",
+          "bytes": 48,
+          "ndcg": 0.3412,
+          "pct": 93,
+          "lossless": false
+        },
+        {
+          "method": "binary+rerank",
+          "axis": "quantisation",
+          "bytes": 48,
+          "ndcg": 0.3652,
+          "pct": 100,
+          "lossless": true
+        },
+        {
+          "method": "rabitq",
+          "axis": "quantisation",
+          "bytes": 48,
+          "ndcg": 0.3408,
+          "pct": 93,
+          "lossless": false
+        }
       ]
     }
   },
@@ -80,23 +850,89 @@
     "title": "The bit-trie against the graph and IVF, on identical data",
     "note": "All four indexes on identical synthetic data (100k clustered vectors, 128-d, 10k queries), reproducible with `bitbudget bench-index --synthetic 100000 128` (which runs the faiss indexes and the bit-trie in separate processes, then merges, to avoid the macOS OpenMP clash). The bit-trie routes on an 8-byte code and reaches graph-class recall at 88x less memory than HNSW. Its QPS is the multithreaded C kernel (compiled on first use, ~6x single-thread on 8 cores, bit-identical to the Python path). QPS is single-machine.",
     "rows": [
-      {"method": "bittrie", "axis": "quantisation",  "bytes": 8,   "recall": 0.977, "qps": 16320},
-      {"method": "ivfpq",   "axis": "organisation",  "bytes": 64,  "recall": 0.712, "qps": 33745},
-      {"method": "flat",    "axis": "organisation",  "bytes": 512, "recall": 1.000, "qps": 27059},
-      {"method": "hnsw",    "axis": "organisation",  "bytes": 704, "recall": 1.000, "qps": 51895}
+      {
+        "method": "bittrie",
+        "axis": "quantisation",
+        "bytes": 8,
+        "recall": 0.977,
+        "qps": 16320
+      },
+      {
+        "method": "ivfpq",
+        "axis": "organisation",
+        "bytes": 64,
+        "recall": 0.712,
+        "qps": 33745
+      },
+      {
+        "method": "flat",
+        "axis": "organisation",
+        "bytes": 512,
+        "recall": 1.0,
+        "qps": 27059
+      },
+      {
+        "method": "hnsw",
+        "axis": "organisation",
+        "bytes": 704,
+        "recall": 1.0,
+        "qps": 51895
+      }
     ]
   },
   "supervised": {
     "title": "Supervised hashing on CIFAR-10 — does a better projection pay?",
     "note": "Class-mAP on CIFAR-10 (512-d ResNet-18 features, class-based relevance, mean ± std over 3 splits) at a matched 8-byte budget, against full-precision float (2 KB) and product quantisation (64 B). At a fixed quantiser the story is the projection axis: a random code (LSH) trails the float, a learned unsupervised rotation (ITQ) edges past it, supervision (GRH, KSH) more than doubles it at 256x less memory, and a deep hash head (DPSH) — the pairwise objective trained on the same frozen features and labels — is higher still. Evidence for the lens, not a submittable board; reproduce with the paper's benchmark harness (train_deep_hash.py + run_cifar_supervised.py --deep).",
     "rows": [
-      {"method": "DPSH (deep)",  "axis": "projection",   "bytes": 8,    "map": 0.600, "std": 0.002},
-      {"method": "GRH",          "axis": "projection",   "bytes": 8,    "map": 0.508, "std": 0.004},
-      {"method": "KSH",          "axis": "projection",   "bytes": 8,    "map": 0.473, "std": 0.006},
-      {"method": "ITQ",          "axis": "projection",   "bytes": 8,    "map": 0.265, "std": 0.002},
-      {"method": "IVF-PQ",       "axis": "quantisation", "bytes": 64,   "map": 0.241, "std": 0.002},
-      {"method": "Exact (flat)", "axis": "none",         "bytes": 2048, "map": 0.223, "std": 0.002},
-      {"method": "LSH",          "axis": "projection",   "bytes": 8,    "map": 0.188, "std": 0.003}
+      {
+        "method": "DPSH (deep)",
+        "axis": "projection",
+        "bytes": 8,
+        "map": 0.6,
+        "std": 0.002
+      },
+      {
+        "method": "GRH",
+        "axis": "projection",
+        "bytes": 8,
+        "map": 0.508,
+        "std": 0.004
+      },
+      {
+        "method": "KSH",
+        "axis": "projection",
+        "bytes": 8,
+        "map": 0.473,
+        "std": 0.006
+      },
+      {
+        "method": "ITQ",
+        "axis": "projection",
+        "bytes": 8,
+        "map": 0.265,
+        "std": 0.002
+      },
+      {
+        "method": "IVF-PQ",
+        "axis": "quantisation",
+        "bytes": 64,
+        "map": 0.241,
+        "std": 0.002
+      },
+      {
+        "method": "Exact (flat)",
+        "axis": "none",
+        "bytes": 2048,
+        "map": 0.223,
+        "std": 0.002
+      },
+      {
+        "method": "LSH",
+        "axis": "projection",
+        "bytes": 8,
+        "map": 0.188,
+        "std": 0.003
+      }
     ]
   }
 }
