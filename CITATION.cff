@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use BitBudget, please cite the accompanying survey."
+title: "BitBudget: a recall-per-byte benchmark for embedding compression"
+authors:
+  - family-names: Moran
+    given-names: Sean
+version: 0.1.0
+license: MIT
+repository-code: "https://github.com/sjmoran/bitbudget"
+preferred-citation:
+  type: article
+  title: "Projection and Quantisation: A Unifying View of Learning to Hash, from Random Projections to the RAG Era"
+  authors:
+    - family-names: Moran
+      given-names: Sean
+  journal: "arXiv preprint"
+  year: 2025
+  notes: "arXiv:2510.04127"

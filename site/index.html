@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BitBudget — retrieval quality per byte</title>
+<meta name="description" content="An open benchmark for embedding compression: how much retrieval quality (nDCG@10) survives per byte. Bits beat dimensions.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='14'>🪙</text></svg>">
+<style>
+  :root{
+    --bg:#ffffff; --ink:#1f2328; --mut:#636c76; --line:#d0d7de; --soft:#f6f8fa;
+    --link:#0969da; --q:#1a7f37; --p:#bc4c00; --n:#57606a; --gold:#9a6700;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  a{color:var(--link);text-decoration:none} a:hover{text-decoration:underline}
+  .wrap{max-width:880px;margin:0 auto;padding:0 22px}
+  header{border-bottom:1px solid var(--line);padding:40px 0 26px}
+  h1{margin:0;font-size:34px;letter-spacing:-.5px;font-weight:700}
+  .tag{color:var(--mut);font-size:17px;margin:8px 0 0}
+  .lens{margin:14px 0 0;font-size:13.5px;color:var(--mut)}
+  .lens b{color:var(--ink);font-weight:600}
+  .cta{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px;align-items:center}
+  .pip{background:var(--soft);border:1px solid var(--line);border-radius:6px;
+    padding:7px 12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
+  .pip .d{color:var(--q);font-weight:600}
+  .btn{background:var(--bg);border:1px solid var(--line);border-radius:6px;
+    padding:7px 12px;font-size:13px;color:var(--ink)}
+  .btn:hover{background:var(--soft);text-decoration:none}
+  section{padding:30px 0;border-bottom:1px solid var(--line)}
+  h2{font-size:19px;margin:0 0 4px;font-weight:650}
+  .sub{color:var(--mut);font-size:13px;margin:0 0 16px}
+  .tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+  .tab{background:var(--bg);border:1px solid var(--line);border-radius:6px;
+    padding:6px 13px;font-size:13px;cursor:pointer;color:var(--mut)}
+  .tab.on{color:var(--ink);border-color:var(--ink);background:var(--soft);font-weight:600}
+  .tab small{color:var(--n);font-weight:400}
+  /* plot */
+  .plotwrap{border:1px solid var(--line);border-radius:8px;padding:12px 6px 4px;background:var(--bg)}
+  svg{width:100%;height:auto;display:block}
+  .grid{stroke:var(--line);stroke-width:1}
+  .axlbl{fill:var(--mut);font-size:11px}
+  .axtitle{fill:var(--ink);font-size:12px;font-weight:600}
+  .pt{stroke:#fff;stroke-width:1.5}
+  .ptlbl{fill:var(--ink);font-size:11px}
+  .legend{display:flex;gap:18px;justify-content:center;margin:6px 0 2px;font-size:12px;color:var(--mut);flex-wrap:wrap}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:middle}
+  /* table */
+  table{width:100%;border-collapse:collapse;font-size:14px;margin-top:4px}
+  th,td{padding:9px 8px;text-align:left;border-bottom:1px solid var(--line)}
+  thead th{background:var(--soft);font-size:11.5px;color:var(--mut);text-transform:uppercase;
+    letter-spacing:.4px;cursor:pointer;user-select:none;white-space:nowrap;border-bottom:1px solid var(--line)}
+  thead th:hover{color:var(--ink)} th .ar{opacity:.55;font-size:10px}
+  td.num{font-variant-numeric:tabular-nums;text-align:right}
+  td.method{font-weight:600}
+  tr.lossless td.method::after{content:"lossless";margin-left:8px;font-size:10px;
+    color:var(--gold);border:1px solid var(--gold);border-radius:4px;padding:1px 5px;font-weight:600;text-transform:uppercase}
+  tbody tr:hover{background:var(--soft)}
+  .chip{font-size:11px;padding:2px 9px;border-radius:20px;border:1px solid;font-weight:500}
+  .chip.quantisation{color:var(--q);border-color:#1a7f3755;background:#1a7f370d}
+  .chip.projection{color:var(--p);border-color:#bc4c0055;background:#bc4c000d}
+  .chip.none{color:var(--n);border-color:var(--line);background:var(--soft)}
+  .bar{position:relative;height:16px;background:var(--soft);border:1px solid var(--line);border-radius:3px;min-width:110px}
+  .bar > i{position:absolute;left:0;top:0;bottom:0;border-radius:2px;background:#5b9bd5}
+  .bar > span{position:relative;font-size:11.5px;padding:0 6px;line-height:16px;font-variant-numeric:tabular-nums}
+  .mrow{display:grid;grid-template-columns:140px 110px 1fr;gap:14px;align-items:start;
+    padding:11px 0;border-bottom:1px solid var(--line)}
+  .mrow:last-child{border-bottom:0}
+  .mrow .mname{font-weight:600;font-family:ui-monospace,Menlo,monospace;font-size:13.5px}
+  .mrow .mdesc{color:var(--mut);font-size:13.5px}
+  @media(max-width:560px){.mrow{grid-template-columns:1fr;gap:4px}}
+  .read{background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:16px 18px;font-size:14px}
+  .read b{color:var(--ink)}
+  ol{padding-left:20px} code{background:var(--soft);border:1px solid var(--line);
+    border-radius:4px;padding:1px 6px;font-family:ui-monospace,Menlo,monospace;font-size:12.5px}
+  footer{padding:26px 0 48px;color:var(--mut);font-size:13px}
+  .muted{color:var(--mut)}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <h1>🪙 BitBudget</h1>
+  <p class="tag">How much retrieval quality survives <b>per byte</b>?</p>
+  <p class="lens">An open benchmark for embedding compression, organised by the
+    <b>projection&ndash;quantisation&ndash;organisation</b> lens. The headline finding:
+    <b>bits beat dimensions</b>.</p>
+  <div class="cta">
+    <span class="pip">pip install <span class="d">bitbudget</span></span>
+    <a class="btn" href="https://github.com/sjmoran/bitbudget">GitHub</a>
+    <a class="btn" id="paperlink" href="https://github.com/sjmoran/bitbudget#readme">Paper</a>
+  </div>
+</div></header>
+
+<section><div class="wrap">
+  <h2>Quality&ndash;footprint frontier</h2>
+  <p class="sub" id="protocol"></p>
+  <div class="tabs" id="tabs"></div>
+  <div class="plotwrap">
+    <svg id="plot" viewBox="0 0 720 380" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="legend">
+      <span><i style="background:#1a7f37"></i>quantisation axis</span>
+      <span><i style="background:#bc4c00"></i>projection axis</span>
+      <span><i style="background:#57606a"></i>uncompressed</span>
+    </div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <h2>Leaderboard</h2>
+  <p class="sub">Click a column to sort. Footprint is bytes per vector; lower is better at equal quality.</p>
+  <table id="board">
+    <thead><tr>
+      <th data-k="method">Method</th>
+      <th data-k="axis">Axis</th>
+      <th data-k="bytes" class="num">Bytes/vec <span class="ar">▲</span></th>
+      <th data-k="ndcg" class="num">nDCG@10</th>
+      <th data-k="pct" class="num">% of float</th>
+    </tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+</div></section>
+
+<section><div class="wrap">
+  <h2>Methods</h2>
+  <p class="sub">Each entry is a single design choice on one axis of the lens. Compression is reported as bytes per vector.</p>
+  <div id="methods"></div>
+</div></section>
+
+<section><div class="wrap">
+  <h2>How to read it</h2>
+  <div class="read">
+    At a matched footprint the <b>quantisation</b>-axis methods (binary, PQ, RaBitQ) dominate the
+    <b>projection</b>-axis ones (Matryoshka, PCA): <b>bits beat dimensions</b>. A one-bit code with a
+    re-ranking pass is <b>lossless at 32&times; compression</b> on both embedders, and the larger
+    embedding binarises <i>better</i> (92% vs 88%) because its information is spread across more
+    coordinates. The benchmark measures quality retained per byte, not absolute quality, so a small
+    embedder and a large one can be compared on the same axis.
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <h2>Submit your method</h2>
+  <p class="sub">The leaderboard is reproducible and open. To add a row:</p>
+  <ol>
+    <li>Register your method with the <code>@method(...)</code> decorator (see <a href="https://github.com/sjmoran/bitbudget/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a>).</li>
+    <li>Run <code>bitbudget run --embedder mxbai --corpus scifact nfcorpus arguana fiqa</code>.</li>
+    <li>Open a PR adding your row to <code>site/data.json</code> with the generated results card attached.</li>
+  </ol>
+  <p class="muted">Every number on this page is regenerated from <code>site/data.json</code> and
+    deployed automatically on merge. No servers, no tracking.</p>
+</div></section>
+
+<footer><div class="wrap">
+  <span id="updated"></span> &middot;
+  MIT licensed &middot;
+  <a href="https://github.com/sjmoran/bitbudget/blob/main/CITATION.cff">Cite</a> &middot;
+  Built for the projection&ndash;quantisation&ndash;organisation survey.
+</div></footer>
+
+<script>
+let DATA, cur=0, sortK="bytes", asc=true;
+const AXC={quantisation:"#1a7f37",projection:"#bc4c00",none:"#57606a"};
+fetch("data.json").then(r=>r.json()).then(d=>{
+  DATA=d;
+  document.getElementById("protocol").textContent=d.protocol;
+  document.getElementById("updated").textContent="Updated "+d.updated;
+  const tabs=document.getElementById("tabs");
+  d.embedders.forEach((e,i)=>{
+    const t=document.createElement("div"); t.className="tab"+(i===0?" on":"");
+    t.innerHTML=e.name+" <small>"+e.note+"</small>";
+    t.onclick=()=>{cur=i;[...tabs.children].forEach(c=>c.classList.remove("on"));t.classList.add("on");draw();render();};
+    tabs.appendChild(t);
+  });
+  document.querySelectorAll("thead th").forEach(th=>th.onclick=()=>{
+    const k=th.dataset.k; asc=(k===sortK)? !asc : (k==="method"||k==="axis"); sortK=k; render();
+  });
+  methodsSection();
+  draw(); render();
+});
+
+function methodsSection(){
+  const m=DATA.methods||{}, host=document.getElementById("methods");
+  const order={quantisation:0,projection:1,none:2};
+  const names=Object.keys(m).sort((a,b)=> (order[m[a].axis]-order[m[b].axis]) || m[a].bytes-m[b].bytes);
+  host.innerHTML=names.map(n=>
+    `<div class="mrow"><div class="mname">${n}</div>`+
+    `<div><span class="chip ${m[n].axis}">${m[n].axis}</span></div>`+
+    `<div class="mdesc">${m[n].desc}</div></div>`).join("");
+}
+
+function draw(){
+  const rows=DATA.embedders[cur].rows;
+  const W=720,H=380,L=58,R=18,T=18,B=44;
+  const xs=rows.map(r=>Math.log10(r.bytes)), ys=rows.map(r=>r.ndcg);
+  const xmin=Math.min(...xs)-0.18, xmax=Math.max(...xs)+0.18;
+  const ymin=Math.min(...ys), ymax=Math.max(...ys), yp=(ymax-ymin)*0.12||0.02;
+  const y0=ymin-yp, y1=ymax+yp;
+  const px=v=>L+(Math.log10(v)-xmin)/(xmax-xmin)*(W-L-R);
+  const py=v=>T+(1-(v-y0)/(y1-y0))*(H-T-B);
+  const byteTicks=[16,32,48,64,128,256,384,512,1024,1536,2048,4096].filter(b=>Math.log10(b)>=xmin&&Math.log10(b)<=xmax);
+  let s=`<rect x="${L}" y="${T}" width="${W-L-R}" height="${H-T-B}" fill="none" stroke="#d0d7de"/>`;
+  // y gridlines + labels
+  const yticks=5;
+  for(let i=0;i<=yticks;i++){const v=y0+(y1-y0)*i/yticks,Y=py(v);
+    s+=`<line class="grid" x1="${L}" y1="${Y}" x2="${W-R}" y2="${Y}" opacity="${i?0.5:0}"/>`;
+    s+=`<text class="axlbl" x="${L-8}" y="${Y+3}" text-anchor="end">${v.toFixed(2)}</text>`;}
+  // x ticks (log, byte sizes)
+  byteTicks.forEach(b=>{const X=px(b);
+    s+=`<line class="grid" x1="${X}" y1="${T}" x2="${X}" y2="${H-B}" opacity="0.4"/>`;
+    s+=`<text class="axlbl" x="${X}" y="${H-B+15}" text-anchor="middle">${b}</text>`;});
+  s+=`<text class="axtitle" x="${L+(W-L-R)/2}" y="${H-6}" text-anchor="middle">bytes per vector (log scale) — fewer is better →</text>`;
+  s+=`<text class="axtitle" transform="translate(15,${T+(H-T-B)/2}) rotate(-90)" text-anchor="middle">nDCG@10 — higher is better</text>`;
+  // points + labels
+  rows.forEach(r=>{const X=px(r.bytes),Y=py(r.ndcg),c=AXC[r.axis]||"#57606a";
+    s+=`<circle class="pt" cx="${X}" cy="${Y}" r="${r.lossless?6.5:5.5}" fill="${c}"/>`;
+    const right=X<W-130, lx=right?X+9:X-9, anc=right?"start":"end";
+    s+=`<text class="ptlbl" x="${lx}" y="${Y+3}" text-anchor="${anc}">${r.method}</text>`;});
+  document.getElementById("plot").innerHTML=s;
+}
+
+function render(){
+  const rows=[...DATA.embedders[cur].rows].sort((a,b)=>{
+    let x=a[sortK],y=b[sortK];
+    if(typeof x==="string") return asc? x.localeCompare(y): y.localeCompare(x);
+    return asc? x-y : y-x;
+  });
+  const tb=document.getElementById("rows"); tb.innerHTML="";
+  for(const r of rows){
+    const tr=document.createElement("tr"); if(r.lossless) tr.className="lossless";
+    const desc=(DATA.methods&&DATA.methods[r.method])?DATA.methods[r.method].desc:"";
+    tr.innerHTML=
+      `<td class="method" title="${desc.replace(/"/g,'&quot;')}">${r.method}</td>`+
+      `<td><span class="chip ${r.axis}">${r.axis}</span></td>`+
+      `<td class="num">${r.bytes.toLocaleString()}</td>`+
+      `<td class="num">${r.ndcg.toFixed(3)}</td>`+
+      `<td class="num"><div class="bar"><i style="width:${r.pct}%"></i>`+
+        `<span>${r.pct}${r.std?(" ± "+r.std):""}</span></div></td>`;
+    tb.appendChild(tr);
+  }
+  document.querySelectorAll("thead th .ar").forEach(a=>a.remove());
+  const th=[...document.querySelectorAll("thead th")].find(t=>t.dataset.k===sortK);
+  if(th){const a=document.createElement("span");a.className="ar";a.textContent=asc?" ▲":" ▼";th.appendChild(a);}
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+
+# benchmark outputs / caches
+results/
+.cache/
+
+# editor / OS
+.DS_Store

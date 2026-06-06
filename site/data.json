@@ -1,0 +1,46 @@
+{
+  "updated": "2026-06-06",
+  "protocol": "nDCG@10 retained per byte, mean over BEIR corpora scifact, nfcorpus, arguana, fiqa. '% of float' is nDCG@10 relative to the uncompressed embedding; '±' is the standard deviation across the four corpora.",
+  "methods": {
+    "float32":       {"axis": "none",         "desc": "The uncompressed embedding stored as 32-bit floats (4 bytes per dimension). The baseline every other method is measured against."},
+    "int8":          {"axis": "quantisation", "desc": "Each coordinate linearly scaled to an 8-bit integer (1 byte per dimension). A 4x shrink that is essentially lossless."},
+    "binary":        {"axis": "quantisation", "desc": "Each coordinate replaced by its sign, one bit per dimension (32x smaller than float). Candidates ranked by Hamming distance."},
+    "binary+rerank": {"axis": "quantisation", "desc": "Binary Hamming search shortlists candidates, then the shortlist is re-scored with full-precision vectors. Recovers float-level quality while searching at the binary footprint."},
+    "pq":            {"axis": "quantisation", "desc": "Product Quantisation: split the vector into sub-vectors and encode each against a learned codebook, a few bytes per vector (Jegou et al., 2011)."},
+    "rabitq":        {"axis": "quantisation", "desc": "A random rotation followed by 1-bit quantisation with an unbiased distance estimator, so a single 1-bit code both routes and ranks (Gao & Long, 2024)."},
+    "matryoshka":    {"axis": "projection",   "desc": "Truncate a Matryoshka-trained embedding to its leading dimensions: fewer dimensions at full float precision (Kusupati et al., 2022)."},
+    "pca":           {"axis": "projection",   "desc": "Project onto the top principal components: the classic linear dimensionality reduction, fewer dimensions at float precision."}
+  },
+  "embedders": [
+    {
+      "name": "mxbai-embed-large",
+      "dim": 1024,
+      "note": "1024-d, Matryoshka",
+      "rows": [
+        {"method": "binary",        "axis": "quantisation", "bytes": 128,  "ndcg": 0.469, "pct": 92,  "std": 2, "lossless": false},
+        {"method": "binary+rerank", "axis": "quantisation", "bytes": 128,  "ndcg": 0.509, "pct": 100, "std": 0, "lossless": true},
+        {"method": "pq",            "axis": "quantisation", "bytes": 128,  "ndcg": 0.488, "pct": 96,  "std": 2, "lossless": false},
+        {"method": "rabitq",        "axis": "quantisation", "bytes": 128,  "ndcg": 0.487, "pct": 96,  "std": 2, "lossless": false},
+        {"method": "int8",          "axis": "quantisation", "bytes": 1024, "ndcg": 0.509, "pct": 100, "std": 0, "lossless": true},
+        {"method": "matryoshka",    "axis": "projection",   "bytes": 1024, "ndcg": 0.439, "pct": 86,  "std": 4, "lossless": false},
+        {"method": "pca",           "axis": "projection",   "bytes": 1024, "ndcg": 0.450, "pct": 88,  "std": 6, "lossless": false},
+        {"method": "float32",       "axis": "none",         "bytes": 4096, "ndcg": 0.508, "pct": 100, "std": 0, "lossless": true}
+      ]
+    },
+    {
+      "name": "all-MiniLM-L6-v2",
+      "dim": 384,
+      "note": "384-d",
+      "rows": [
+        {"method": "binary",        "axis": "quantisation", "bytes": 48,   "ndcg": 0.375, "pct": 88,  "std": 3, "lossless": false},
+        {"method": "binary+rerank", "axis": "quantisation", "bytes": 48,   "ndcg": 0.424, "pct": 100, "std": 0, "lossless": true},
+        {"method": "pq",            "axis": "quantisation", "bytes": 48,   "ndcg": 0.401, "pct": 94,  "std": 3, "lossless": false},
+        {"method": "rabitq",        "axis": "quantisation", "bytes": 48,   "ndcg": 0.397, "pct": 93,  "std": 2, "lossless": false},
+        {"method": "int8",          "axis": "quantisation", "bytes": 384,  "ndcg": 0.426, "pct": 100, "std": 0, "lossless": true},
+        {"method": "matryoshka",    "axis": "projection",   "bytes": 384,  "ndcg": 0.324, "pct": 75,  "std": 5, "lossless": false},
+        {"method": "pca",           "axis": "projection",   "bytes": 384,  "ndcg": 0.358, "pct": 83,  "std": 6, "lossless": false},
+        {"method": "float32",       "axis": "none",         "bytes": 1536, "ndcg": 0.425, "pct": 100, "std": 0, "lossless": true}
+      ]
+    }
+  ]
+}
