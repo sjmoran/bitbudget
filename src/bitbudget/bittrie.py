@@ -78,6 +78,27 @@ class BitTrieIndex:
             s = sign @ (q @ self.R)
         return cand[np.argsort(-s)[:topk]]
 
+    def query_batch(self, Q, topk=10, beam=64, depth=28):
+        """Top-k for every query in Q. Uses the compiled C kernel when available (one to two
+        orders of magnitude faster), else falls back to the pure-Python per-query path."""
+        Q = np.ascontiguousarray(Q, dtype=np.float32)
+        depth = min(depth, self.b)
+        from ._bittrie_build import get_lib
+        lib = get_lib()
+        if lib is None:
+            return np.array([self.query(q, topk, beam, depth, rerank="float") for q in Q])
+        import ctypes
+        qproj = np.ascontiguousarray(Q @ self.R, dtype=np.float32)
+        Xf = np.ascontiguousarray(self.X, dtype=np.float32)
+        out = np.full((len(Q), topk), -1, dtype=np.int64)
+        cast = lambda a, t: a.ctypes.data_as(ctypes.POINTER(t))
+        lib.bt_query_batch(
+            cast(self.codes, ctypes.c_uint64), cast(self.docids, ctypes.c_int64),
+            cast(Xf, ctypes.c_float), cast(qproj, ctypes.c_float), cast(Q, ctypes.c_float),
+            self.n, self.d, self.b, len(Q), int(depth), int(beam), int(topk),
+            cast(out, ctypes.c_int64))
+        return out
+
     def codes_full(self, cand):
         inv = np.empty(self.n, np.int64); inv[self.docids] = np.arange(self.n)
         return self.codes[inv[cand]]

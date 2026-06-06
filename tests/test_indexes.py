@@ -32,6 +32,18 @@ def test_bittrie_bench_runs_without_faiss():
     assert r["recall"] > 0.5                       # clustered data is easy; should be well above chance
 
 
+def test_query_batch_matches_python():
+    """The C kernel (when compiled) must return the same top-k as the Python path; if no compiler
+    is available, query_batch falls back to Python and trivially matches."""
+    from bitbudget.bittrie import BitTrieIndex
+    xb, xq = _clustered(n=6000, d=64, nq=120)
+    ix = BitTrieIndex(n_bits=64, seed=0).fit(xb)
+    py = np.array([ix.query(q, topk=10, beam=128, depth=24, rerank="float") for q in xq])
+    batch = ix.query_batch(xq, topk=10, beam=128, depth=24)
+    overlap = np.mean([len(set(py[i].tolist()) & set(batch[i].tolist())) / 10 for i in range(len(xq))])
+    assert overlap > 0.99, overlap
+
+
 def test_bench_is_sorted_by_footprint():
     xb, xq = _clustered()
     rows = bench_indexes(xb, xq, k=10, verbose=False)   # all available (faiss skipped if absent)

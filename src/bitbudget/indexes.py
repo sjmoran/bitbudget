@@ -78,8 +78,8 @@ def ivfpq(xb, xq, k, nprobe=64):
 def bittrie(xb, xq, k, nbits=64, beam=128, depth=24):
     from .bittrie import BitTrieIndex
     ix = BitTrieIndex(n_bits=nbits, seed=0).fit(xb)
-    I, t = _time(lambda: np.array([ix.query(q, topk=k, beam=beam, depth=depth, rerank="float")
-                                   for q in xq]), repeats=1)
+    ix.query_batch(xq[:2], topk=k, beam=beam, depth=depth)   # warm up (compile C kernel once)
+    I, t = _time(lambda: ix.query_batch(xq, topk=k, beam=beam, depth=depth), repeats=2)
     return I, nbits / 8.0, len(xq) / t                 # compact routing code (float kept cold for re-rank)
 
 

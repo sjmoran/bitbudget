@@ -32,3 +32,8 @@ Leaderboard = "https://github.com/sjmoran/bitbudget/blob/main/LEADERBOARD.md"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+# Ship the bit-trie C kernel as data (compiled on demand at runtime, see _bittrie_build.py).
+# The wheel stays pure-Python (py3-none-any); no compiler is needed to install.
+[tool.setuptools.package-data]
+bitbudget = ["_bittrie.c"]

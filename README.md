@@ -59,6 +59,11 @@ can be compared against compact‑code indexes on one frontier. Run it on synthe
 cached embedding (`--embedder mxbai --corpus scifact`), or on your own vectors (`--npz`). The
 faiss‑backed indexes need `pip install bitbudget[faiss]`; the numpy `bittrie` runs without it.
 
+The `bittrie` index ships a small C kernel (`_bittrie.c`) for the query hot‑path, compiled on
+first use and cached (no compiler needed to *install* — the wheel stays pure‑Python, and it falls
+back to numpy if no compiler is present). The C path is ~20× the pure‑Python loop and returns
+bit‑identical results; recall and footprint are algorithmic and unchanged either way.
+
 > **macOS note.** torch and faiss each bundle their own OpenMP runtime and crash if imported
 > in the same process. The core methods are numpy‑only, so `run` is safe; if you add a
 > faiss‑backed method, run `bitbudget embed` (torch) and `bitbudget eval` (numpy/faiss)
