@@ -157,6 +157,18 @@
 </div></section>
 
 <section><div class="wrap">
+  <h2 id="idxtitle"></h2>
+  <p class="sub" id="idxnote"></p>
+  <div class="plotwrap">
+    <svg id="plotIdx" viewBox="0 0 720 380" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="legend" id="legendIdx"></div>
+  </div>
+  <table id="idxtbl"><thead><tr>
+    <th>Method</th><th>Axis</th><th class="num">Bytes/vec</th><th class="num">Recall@10</th><th class="num">QPS</th>
+  </tr></thead><tbody id="idxrows"></tbody></table>
+</div></section>
+
+<section><div class="wrap">
   <h2>Methods</h2>
   <p class="sub">Each entry is a single design choice on one axis of the lens. Compression is reported as bytes per vector.</p>
   <div id="methods"></div>
@@ -282,6 +294,20 @@ function drawScale(){
     `<td><span class="chip ${r.axis}">${r.axis}</span></td>`+
     `<td class="num">${r.bytes.toLocaleString()}</td><td class="num">${r.ndcg.toFixed(4)}</td>`+
     `<td class="num">${r.pct}</td></tr>`).join("");
+  // index benchmark (bit-trie head to head)
+  const ib=DATA.indexbench;
+  document.getElementById("idxtitle").textContent=ib.title;
+  document.getElementById("idxnote").textContent=ib.note;
+  scatter("plotIdx","legendIdx",ib.rows,{
+    x:r=>r.qps, y:r=>r.recall, xlog:true,
+    xfmt:v=>v.toLocaleString(), yfmt:v=>v.toFixed(2),
+    xtitle:"queries per second (log scale) — higher is better →",
+    ytitle:"recall@10 — higher is better"});
+  document.getElementById("idxrows").innerHTML=ib.rows.map(r=>
+    `<tr><td class="method" title="${(DATA.methods[r.method]||{}).desc||''}">${r.method}</td>`+
+    `<td><span class="chip ${r.axis}">${r.axis}</span></td>`+
+    `<td class="num">${r.bytes.toLocaleString()}</td><td class="num">${r.recall.toFixed(3)}</td>`+
+    `<td class="num">${r.qps.toLocaleString()}</td></tr>`).join("");
 }
 
 function methodsSection(){

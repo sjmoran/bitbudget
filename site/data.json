@@ -13,7 +13,8 @@
     "Exact (flat)":  {"axis": "organisation", "desc": "Brute-force exact search over full-precision vectors: the recall ceiling and, at scale, the throughput floor."},
     "HNSW":          {"axis": "organisation", "desc": "A hierarchical navigable small-world graph. Stores the full vectors plus a graph, so it adds bytes but buys very high query throughput (Malkov & Yashunin, 2020)."},
     "IVF-PQ":        {"axis": "organisation", "desc": "An inverted file over coarse centroids with product-quantised residuals: an order-of-magnitude smaller footprint at lower recall (Jegou et al., 2011)."},
-    "ITQ+rerank":    {"axis": "quantisation", "desc": "Iterative-quantisation binary codes (16 bytes) with full-precision re-ranking of a Hamming shortlist (Gong et al., 2011)."}
+    "ITQ+rerank":    {"axis": "quantisation", "desc": "Iterative-quantisation binary codes (16 bytes) with full-precision re-ranking of a Hamming shortlist (Gong et al., 2011)."},
+    "bittrie":       {"axis": "quantisation", "desc": "A van Emde Boas / PATRICIA radix-trie over compact sign-codes: the sorted code array is the trie, searched coarse-to-fine, then re-ranked. Routes on an 8-byte code, reaching graph-class recall at a fraction of a graph's memory (research entry; see bitbudget bench-index)."}
   },
   "embedders": [
     {
@@ -69,5 +70,15 @@
         {"method": "rabitq",        "axis": "quantisation", "bytes": 48,   "ndcg": 0.3408, "pct": 93,  "lossless": false}
       ]
     }
+  },
+  "indexbench": {
+    "title": "Index benchmark — the bit-trie, head to head",
+    "note": "All four indexes on identical synthetic data (100k clustered vectors, 128-d), reproducible with `bitbudget bench-index --synthetic 100000 128`. The bit-trie routes on an 8-byte code and reaches graph-class recall at a fraction of the memory; its low QPS reflects a pure-Python reference loop, not the method itself (a compiled descent would be fast). HNSW and IVF-PQ are faiss; QPS is single-thread.",
+    "rows": [
+      {"method": "bittrie", "axis": "quantisation",  "bytes": 8,   "recall": 0.982, "qps": 129},
+      {"method": "ivfpq",   "axis": "organisation",  "bytes": 64,  "recall": 0.710, "qps": 30480},
+      {"method": "flat",    "axis": "organisation",  "bytes": 512, "recall": 1.000, "qps": 24128},
+      {"method": "hnsw",    "axis": "organisation",  "bytes": 704, "recall": 1.000, "qps": 53734}
+    ]
   }
 }
