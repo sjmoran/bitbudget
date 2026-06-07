@@ -81,6 +81,10 @@
     "int4": {
       "axis": "quantisation",
       "desc": "4-bit per-dimension scalar quantisation (15 signed levels): half the footprint of int8, an aggressive-but-not-binary operating point."
+    },
+    "binary-mean": {
+      "axis": "quantisation",
+      "desc": "1-bit sign code thresholded at the per-coordinate MEAN, not at zero. A zero threshold assumes mean-centred data (LSH assumption A1); for off-centre embeddings like e5 it wastes most bits, and re-centring the threshold recovers them (e5: 53% -> 86% of float). Where the threshold is placed can matter as much as how many bits are spent."
     }
   },
   "embedders": [
@@ -106,6 +110,15 @@
           "pct": 100.0,
           "std": 0.0,
           "lossless": true
+        },
+        {
+          "method": "binary-mean",
+          "axis": "quantisation",
+          "bytes": 192,
+          "ndcg": 0.49,
+          "pct": 95.7,
+          "std": 3.3,
+          "lossless": false
         },
         {
           "method": "pq",
@@ -205,6 +218,15 @@
           "lossless": true
         },
         {
+          "method": "binary-mean",
+          "axis": "quantisation",
+          "bytes": 384,
+          "ndcg": 0.527,
+          "pct": 96.9,
+          "std": 2.6,
+          "lossless": false
+        },
+        {
           "method": "pq",
           "axis": "quantisation",
           "bytes": 384,
@@ -300,6 +322,15 @@
           "pct": 100.2,
           "std": 0.2,
           "lossless": true
+        },
+        {
+          "method": "binary-mean",
+          "axis": "quantisation",
+          "bytes": 128,
+          "ndcg": 0.5,
+          "pct": 94.5,
+          "std": 0.8,
+          "lossless": false
         },
         {
           "method": "pq",
@@ -399,6 +430,15 @@
           "lossless": true
         },
         {
+          "method": "binary-mean",
+          "axis": "quantisation",
+          "bytes": 96,
+          "ndcg": 0.473,
+          "pct": 90.4,
+          "std": 1.4,
+          "lossless": false
+        },
+        {
           "method": "pq",
           "axis": "quantisation",
           "bytes": 96,
@@ -494,6 +534,15 @@
           "pct": 99.7,
           "std": 0.6,
           "lossless": true
+        },
+        {
+          "method": "binary-mean",
+          "axis": "quantisation",
+          "bytes": 96,
+          "ndcg": 0.483,
+          "pct": 93.0,
+          "std": 2.8,
+          "lossless": false
         },
         {
           "method": "pq",
@@ -593,6 +642,15 @@
           "lossless": false
         },
         {
+          "method": "binary-mean",
+          "axis": "quantisation",
+          "bytes": 96,
+          "ndcg": 0.401,
+          "pct": 85.7,
+          "std": 3.8,
+          "lossless": false
+        },
+        {
           "method": "pq",
           "axis": "quantisation",
           "bytes": 96,
@@ -688,6 +746,15 @@
           "pct": 99.8,
           "std": 0.2,
           "lossless": true
+        },
+        {
+          "method": "binary-mean",
+          "axis": "quantisation",
+          "bytes": 48,
+          "ndcg": 0.388,
+          "pct": 86.8,
+          "std": 4.5,
+          "lossless": false
         },
         {
           "method": "pq",

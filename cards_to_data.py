@@ -29,6 +29,11 @@ NEW_METHOD_DESCS = {
                 "The cheapest, most widely deployed compression, and essentially lossless."),
     "int4":    ("quantisation", "4-bit per-dimension scalar quantisation (15 signed levels): half "
                 "the footprint of int8, an aggressive-but-not-binary operating point."),
+    "binary-mean": ("quantisation", "1-bit sign code thresholded at the per-coordinate MEAN, not "
+                "at zero. A zero threshold assumes mean-centred data (LSH assumption A1); for "
+                "off-centre embeddings like e5 it wastes most bits, and re-centring the threshold "
+                "recovers them (e5: 53% -> 86% of float). Where the threshold is placed can matter "
+                "as much as how many bits are spent."),
 }
 
 

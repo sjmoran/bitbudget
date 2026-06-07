@@ -66,6 +66,16 @@ def binary(demb, qemb):
     return np.sign(qemb) @ np.sign(demb).T, demb.shape[1] / 8.0
 
 
+@method("binary-mean", bits=1)
+def binary_mean(demb, qemb):
+    """Sign code thresholded at the per-coordinate mean rather than at zero -- the proper binary
+    baseline, since a zero threshold assumes mean-centred data (LSH assumption A1). For strongly
+    off-centre embeddings (e.g. e5) it recovers most of the quality a zero threshold wastes; for
+    already-centred embeddings it is near-identical to `binary`."""
+    mu = demb.mean(0, keepdims=True)
+    return np.sign(qemb - mu) @ np.sign(demb - mu).T, demb.shape[1] / 8.0
+
+
 @method("binary+rerank", bits=1)
 def binary_rerank(demb, qemb, depth=100):
     bq, bd = np.sign(qemb), np.sign(demb)
