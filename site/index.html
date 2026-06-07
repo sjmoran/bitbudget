@@ -255,10 +255,12 @@ fetch("data.json").then(r=>r.json()).then(d=>{
   DATA=d;
   document.getElementById("protocol").textContent=d.protocol;
   document.getElementById("updated").textContent="Updated "+d.updated;
-  // tabs (main board)
+  // tabs (main board); ?embedder=<name> deep-links to a specific tab
   const tabs=document.getElementById("tabs");
+  const want=new URLSearchParams(location.search).get("embedder");
+  if(want){const j=d.embedders.findIndex(e=>e.name===want); if(j>=0) cur=j;}
   d.embedders.forEach((e,i)=>{
-    const t=document.createElement("div"); t.className="tab"+(i===0?" on":"");
+    const t=document.createElement("div"); t.className="tab"+(i===cur?" on":"");
     t.innerHTML=e.name+" <small>"+e.note+"</small>";
     t.onclick=()=>{cur=i;[...tabs.children].forEach(c=>c.classList.remove("on"));t.classList.add("on");drawMain();renderMain();};
     tabs.appendChild(t);
