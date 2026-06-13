@@ -21,12 +21,12 @@ what do you actually lose?**
 > smaller than float at no measurable loss**.
 
 ```
-mxbai‑embed‑large (1024‑d), mean over 3 BEIR corpora
-  binary+rerank      128 B   nDCG 0.530   100% of float   ← 32× smaller, lossless
-  pq                 128 B   nDCG 0.514    97%
-  rabitq             128 B   nDCG 0.511    96%
-  matryoshka        1024 B   nDCG 0.466    88%             ← 4× smaller, projection axis
-  float32           4096 B   nDCG 0.528   100%
+mxbai‑embed‑large (1024‑d), mean over 4 BEIR corpora
+  binary+rerank      128 B   nDCG 0.509   100% of float   ← 32× smaller, lossless
+  pq                 128 B   nDCG 0.488    96%
+  rabitq             128 B   nDCG 0.487    96%
+  matryoshka        1024 B   nDCG 0.439    86%             ← 4× smaller, projection axis
+  float32           4096 B   nDCG 0.508   100%
 ```
 
 See **[LEADERBOARD.md](LEADERBOARD.md)** for the full table.
