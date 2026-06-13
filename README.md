@@ -7,10 +7,11 @@ embedder and a corpus and it reports the retrieval quality (nDCG@10, recall@10) 
 compression method retains against the **bytes it stores per vector** — the recall‑per‑byte
 frontier that every RAG and vector‑database deployment actually lives on.
 
-It is the companion benchmark to the survey *“Projection and Quantisation: A Unifying View of
-Learning to Hash, from Random Projections to the RAG Era”* and exists to answer one question
-that today is mostly answered by vendor blog posts: **when you binarise / int8 / RaBitQ /
-product‑quantise / Matryoshka‑truncate your embeddings, what do you actually lose?**
+It is the companion benchmark to the survey [*“Projection and Quantisation: A Unifying View of
+Learning to Hash, from Random Projections to the RAG Era”*](https://arxiv.org/abs/2510.04127)
+and exists to answer one question that today is mostly answered by vendor blog posts:
+**when you binarise / int8 / RaBitQ / product‑quantise / Matryoshka‑truncate your embeddings,
+what do you actually lose?**
 
 ## The headline finding
 
@@ -115,11 +116,14 @@ If BitBudget helps your work, please cite the survey:
 
 ```bibtex
 @article{moran2025projection,
-  title   = {Projection and Quantisation: A Unifying View of Learning to Hash,
-             from Random Projections to the RAG Era},
-  author  = {Moran, Sean},
-  journal = {arXiv preprint arXiv:2510.04127},
-  year    = {2025}
+  title         = {Projection and Quantisation: A Unifying View of Learning to Hash,
+                   from Random Projections to the RAG Era},
+  author        = {Moran, Sean},
+  journal       = {arXiv preprint arXiv:2510.04127},
+  year          = {2025},
+  eprint        = {2510.04127},
+  archivePrefix = {arXiv},
+  url           = {https://arxiv.org/abs/2510.04127}
 }
 ```
 

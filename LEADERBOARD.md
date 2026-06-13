@@ -1,6 +1,7 @@
 # BitBudget leaderboard
 
 **Live leaderboard:** https://sjmoran.github.io/bitbudget/ (regenerated from `site/data.json` on merge)
+**Paper:** https://arxiv.org/abs/2510.04127
 
 Retrieval quality retained per byte, mean over the BEIR corpora `scifact`, `nfcorpus`,
 `arguana`, `fiqa`. `% of float` is nDCG@10 relative to the uncompressed embedding; `±` is the
@@ -17,7 +18,7 @@ your row with the generated results card attached. See [CONTRIBUTING.md](CONTRIB
 | binary | quantisation | 128 | 0.469 | 92 ± 2 |
 | binary+rerank | quantisation | 128 | 0.509 | **100 ± 0** |
 | pq | quantisation | 128 | 0.488 | 96 ± 2 |
-| rabitq | quantisation | 128 | 0.487 | 96 ± 2 |
+| rabitq | quantisation | 128 | 0.487 | 96 ± 1 |
 | int8 | quantisation | 1024 | 0.509 | 100 ± 0 |
 | matryoshka | projection | 1024 | 0.439 | 86 ± 4 |
 | pca | projection | 1024 | 0.450 | 88 ± 6 |
@@ -30,7 +31,7 @@ your row with the generated results card attached. See [CONTRIBUTING.md](CONTRIB
 | binary | quantisation | 48 | 0.375 | 88 ± 3 |
 | binary+rerank | quantisation | 48 | 0.424 | **100 ± 0** |
 | pq | quantisation | 48 | 0.401 | 94 ± 3 |
-| rabitq | quantisation | 48 | 0.397 | 93 ± 2 |
+| rabitq | quantisation | 48 | 0.400 | 94 ± 2 |
 | int8 | quantisation | 384 | 0.426 | 100 ± 0 |
 | matryoshka | projection | 384 | 0.324 | 75 ± 5 |
 | pca | projection | 384 | 0.358 | 83 ± 6 |
