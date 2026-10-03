@@ -9,7 +9,9 @@ build happens once per machine.
 import ctypes
 import hashlib
 import os
+import platform
 import subprocess
+import sys
 
 _LIB = None
 _TRIED = False
@@ -43,6 +45,14 @@ def _variants():
     v.append((["-fopenmp"], ["-fopenmp"]))                     # gcc / OpenMP-capable clang (Linux)
     v.append(([], []))                                         # no OpenMP: single-threaded C
     return v
+
+
+def _arch_flags():
+    """macOS: build for the running interpreter's arch (an x86_64 Python under Rosetta on an arm64
+    host cannot dlopen the compiler's default arm64 output)."""
+    if sys.platform == "darwin" and platform.machine() in ("x86_64", "arm64"):
+        return ["-arch", platform.machine()]
+    return []
 
 
 def _set_sig(lib):
@@ -81,7 +91,7 @@ def get_lib():
     cc = os.environ.get("CC") or "cc"
     variants = [([], [])] if os.environ.get("BITBUDGET_NO_OMP") else _variants()
     for cflags, lflags in variants:
-        cmd = [cc, "-O3", "-shared", "-fPIC", *cflags, "-o", so, src, *lflags, "-lm"]
+        cmd = [cc, "-O3", "-shared", "-fPIC", *_arch_flags(), *cflags, "-o", so, src, *lflags, "-lm"]
         try:
             subprocess.run(cmd, check=True, capture_output=True)
         except Exception:
