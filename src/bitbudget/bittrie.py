@@ -13,18 +13,27 @@ import numpy as np
 
 
 class BitTrieIndex:
-    def __init__(self, n_bits=64, seed=0):
+    def __init__(self, n_bits=64, seed=0, rotation="random"):
         assert n_bits <= 64, "this reference packs into one uint64; use a word-array for >64 bits"
         self.b = n_bits
         self.seed = seed
+        assert rotation in ("random", "pca"), rotation
+        self.rotation = rotation                                  # "pca": centre + top-b principal directions
 
     def fit(self, X):
         X = np.ascontiguousarray(X, dtype=np.float32)
         n, d = X.shape
         rng = np.random.RandomState(self.seed)
-        R = rng.randn(d, self.b).astype(np.float32)               # unsupervised random rotation (RaBitQ)
-        R, _ = np.linalg.qr(R) if self.b <= d else (R, None)
-        P = X @ R
+        if self.rotation == "pca":
+            assert self.b <= d, "pca rotation needs n_bits <= dim"
+            self.mu = X.mean(axis=0)
+            samp = X[rng.choice(n, min(n, 20000), replace=False)] - self.mu
+            R = np.linalg.svd(samp, full_matrices=False)[2][: self.b].T.astype(np.float32)
+        else:
+            self.mu = np.zeros(d, np.float32)
+            R = rng.randn(d, self.b).astype(np.float32)           # unsupervised random rotation (RaBitQ)
+            R, _ = np.linalg.qr(R) if self.b <= d else (R, None)
+        P = (X - self.mu) @ R
         order = np.argsort(-P.var(axis=0))                        # coarse-to-fine: MSB = highest variance
         self.R = R[:, order]
         P = P[:, order]
@@ -63,7 +72,7 @@ class BitTrieIndex:
 
     def query(self, q, topk=10, beam=64, depth=28, rerank="float"):
         q = np.asarray(q, dtype=np.float32)
-        p = q @ self.R
+        p = (q - self.mu) @ self.R
         qbits = (p > 0).astype(int)
         qconf = np.abs(p)
         ranges = self._descend(qbits, qconf, beam, depth)
@@ -75,7 +84,7 @@ class BitTrieIndex:
         else:                                                     # asymmetric: float query vs sign code, no float
             shifts = np.arange(self.b - 1, -1, -1, dtype=np.uint64)
             sign = np.where(((self.codes_full(cand)[:, None] >> shifts) & np.uint64(1)) > 0, 1.0, -1.0)
-            s = sign @ (q @ self.R)
+            s = sign @ ((q - self.mu) @ self.R)
         return cand[np.argsort(-s)[:topk]]
 
     def query_batch(self, Q, topk=10, beam=64, depth=28):
@@ -88,7 +97,7 @@ class BitTrieIndex:
         if lib is None:
             return np.array([self.query(q, topk, beam, depth, rerank="float") for q in Q])
         import ctypes
-        qproj = np.ascontiguousarray(Q @ self.R, dtype=np.float32)
+        qproj = np.ascontiguousarray((Q - self.mu) @ self.R, dtype=np.float32)
         Xf = np.ascontiguousarray(self.X, dtype=np.float32)
         out = np.full((len(Q), topk), -1, dtype=np.int64)
         cast = lambda a, t: a.ctypes.data_as(ctypes.POINTER(t))
