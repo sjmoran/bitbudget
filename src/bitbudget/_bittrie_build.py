@@ -67,6 +67,13 @@ def _set_sig(lib):
                   P(ctypes.c_float), P(ctypes.c_float),
                   ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
                   ctypes.c_int, ctypes.c_int, ctypes.c_int, P(ctypes.c_int64)]
+    g = lib.bt_query_batch_ext
+    g.restype = None
+    g.argtypes = [P(ctypes.c_uint64), P(ctypes.c_int64), P(ctypes.c_float),
+                  P(ctypes.c_float), P(ctypes.c_float),
+                  P(ctypes.c_uint64), P(ctypes.c_uint64), ctypes.c_int, ctypes.c_int,
+                  ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+                  ctypes.c_int, ctypes.c_int, ctypes.c_int, P(ctypes.c_int64)]
     return lib
 
 

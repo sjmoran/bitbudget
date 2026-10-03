@@ -13,11 +13,15 @@ import numpy as np
 
 
 class BitTrieIndex:
-    def __init__(self, n_bits=64, seed=0, rotation="random"):
+    def __init__(self, n_bits=64, seed=0, rotation="random", code_bits=None):
         assert n_bits <= 64, "this reference packs into one uint64; use a word-array for >64 bits"
         self.b = n_bits
         self.seed = seed
         assert rotation in ("random", "pca"), rotation
+        # code_bits (multiple of 64, > n_bits): also store a longer code per doc and use it as a Hamming
+        # prefilter before the float re-rank. Routing still uses only the top n_bits.
+        assert code_bits is None or (code_bits % 64 == 0 and code_bits > n_bits), code_bits
+        self.W = code_bits or n_bits
         self.rotation = rotation                                  # "pca": centre + top-b principal directions
 
     def fit(self, X):
@@ -25,27 +29,38 @@ class BitTrieIndex:
         n, d = X.shape
         rng = np.random.RandomState(self.seed)
         if self.rotation == "pca":
-            assert self.b <= d, "pca rotation needs n_bits <= dim"
+            assert self.W <= d, "pca rotation needs code_bits <= dim"
             self.mu = X.mean(axis=0)
             samp = X[rng.choice(n, min(n, 20000), replace=False)] - self.mu
-            R = np.linalg.svd(samp, full_matrices=False)[2][: self.b].T.astype(np.float32)
+            R = np.linalg.svd(samp, full_matrices=False)[2][: self.W].T.astype(np.float32)
         else:
             self.mu = np.zeros(d, np.float32)
-            R = rng.randn(d, self.b).astype(np.float32)           # unsupervised random rotation (RaBitQ)
-            R, _ = np.linalg.qr(R) if self.b <= d else (R, None)
+            R = rng.randn(d, self.W).astype(np.float32)           # unsupervised random rotation (RaBitQ)
+            R, _ = np.linalg.qr(R) if self.W <= d else (R, None)
         P = (X - self.mu) @ R
         order = np.argsort(-P.var(axis=0))                        # coarse-to-fine: MSB = highest variance
-        self.R = R[:, order]
+        self.Rfull = R[:, order]
+        self.R = self.Rfull[:, : self.b]                          # routing projection (top-variance bits)
         P = P[:, order]
         bits = (P > 0).astype(np.uint64)
-        weights = (np.uint64(1) << np.arange(self.b - 1, -1, -1, dtype=np.uint64))
-        codes = bits @ weights
+        w = (np.uint64(1) << np.arange(self.b - 1, -1, -1, dtype=np.uint64))
+        codes = bits[:, : self.b] @ w
         order_idx = np.argsort(codes, kind="stable")
+        self.ext = None
+        if self.W > self.b:                                       # packed W-bit codes, in trie-sorted order
+            self.ext = np.ascontiguousarray(self._pack(bits)[order_idx])
         self.codes = codes[order_idx]                             # sorted: the implicit trie
         self.docids = order_idx.astype(np.int64)
         self.X = X                                                # kept only for optional float re-rank (cold)
         self.n, self.d = n, d
         return self
+
+    @staticmethod
+    def _pack(bits):
+        """(m, W) 0/1 -> (m, W/64) uint64, MSB first within each word."""
+        m, W = bits.shape
+        wt = (np.uint64(1) << np.arange(63, -1, -1, dtype=np.uint64))
+        return np.stack([bits[:, i:i + 64].astype(np.uint64) @ wt for i in range(0, W, 64)], axis=1)
 
     def _descend(self, qbits, qconf, beam, depth):
         """Confidence-ordered beam over the sorted codes. Stop at ``depth`` bits so each surviving
@@ -87,7 +102,7 @@ class BitTrieIndex:
             s = sign @ ((q - self.mu) @ self.R)
         return cand[np.argsort(-s)[:topk]]
 
-    def query_batch(self, Q, topk=10, beam=64, depth=28):
+    def query_batch(self, Q, topk=10, beam=64, depth=28, rerank=None):
         """Top-k for every query in Q. Uses the compiled C kernel when available (one to two
         orders of magnitude faster), else falls back to the pure-Python per-query path."""
         Q = np.ascontiguousarray(Q, dtype=np.float32)
@@ -101,6 +116,14 @@ class BitTrieIndex:
         Xf = np.ascontiguousarray(self.X, dtype=np.float32)
         out = np.full((len(Q), topk), -1, dtype=np.int64)
         cast = lambda a, t: a.ctypes.data_as(ctypes.POINTER(t))
+        if self.ext is not None:
+            qext = np.ascontiguousarray(self._pack((((Q - self.mu) @ self.Rfull) > 0).astype(np.uint64)))
+            lib.bt_query_batch_ext(
+                cast(self.codes, ctypes.c_uint64), cast(self.docids, ctypes.c_int64),
+                cast(Xf, ctypes.c_float), cast(qproj, ctypes.c_float), cast(Q, ctypes.c_float),
+                cast(self.ext, ctypes.c_uint64), cast(qext, ctypes.c_uint64), self.W // 64, int(rerank or 0),
+                self.n, self.d, self.b, len(Q), int(depth), int(beam), int(topk), cast(out, ctypes.c_int64))
+            return out
         lib.bt_query_batch(
             cast(self.codes, ctypes.c_uint64), cast(self.docids, ctypes.c_int64),
             cast(Xf, ctypes.c_float), cast(qproj, ctypes.c_float), cast(Q, ctypes.c_float),
@@ -114,4 +137,4 @@ class BitTrieIndex:
 
     def index_bytes(self):
         """Bytes that must be in RAM to route (codes + leaf ids); the trie is implicit in the sort."""
-        return self.codes.nbytes + self.docids.nbytes
+        return self.codes.nbytes + self.docids.nbytes + (self.ext.nbytes if self.ext is not None else 0)
