@@ -72,8 +72,10 @@ void bt_query_batch(const uint64_t *codes, const int64_t *docids,
                 for (long j = cur[i].lo; j < cur[i].hi; j++) {
                     long id = (long)docids[j];
                     const float *xr = Xf + (size_t)id * d;
-                    double s = 0.0;
-                    for (int dd = 0; dd < d; dd++) s += (double)qv[dd] * (double)xr[dd];
+                    float sf = 0.0f;                  /* float accumulate + simd: ~4-8x faster than the scalar double loop */
+                    #pragma omp simd reduction(+:sf)
+                    for (int dd = 0; dd < d; dd++) sf += qv[dd] * xr[dd];
+                    double s = (double)sf;
                     int mn = 0;
                     for (int t2 = 1; t2 < k; t2++) if (bscore[t2] < bscore[mn]) mn = t2;
                     if (s > bscore[mn]) { bscore[mn] = s; bid[mn] = id; }

@@ -46,7 +46,8 @@ def _variants():
         v.append((["-Xpreprocessor", "-fopenmp", f"-I{omp}/include"],
                   [f"-L{omp}/lib", "-lomp", f"-Wl,-rpath,{omp}/lib"]))
     v.append((["-fopenmp"], ["-fopenmp"]))                     # gcc / OpenMP-capable clang (Linux)
-    v.append(([], []))                                         # no OpenMP: single-threaded C
+    v.append((["-fopenmp-simd"], []))                          # no OpenMP runtime: single-threaded C, simd pragma only
+    v.append(([], []))                                         # last resort: plain C
     return v
 
 
@@ -92,7 +93,7 @@ def get_lib():
             try: os.remove(so)
             except Exception: pass
     cc = os.environ.get("CC") or "cc"
-    variants = [([], [])] if os.environ.get("BITBUDGET_NO_OMP") else _variants()
+    variants = [(["-fopenmp-simd"], [])] if os.environ.get("BITBUDGET_NO_OMP") else _variants()
     for cflags, lflags in variants:
         cmd = [cc, "-O3", "-shared", "-fPIC", *_arch_flags(), *cflags, "-o", so, src, *lflags, "-lm"]
         try:
