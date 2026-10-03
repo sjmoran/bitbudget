@@ -25,6 +25,9 @@ def _cache_dir():
 
 def _brew_libomp():
     """Return the Homebrew libomp prefix on macOS, or None."""
+    home = "/opt/homebrew" if platform.machine() == "arm64" else "/usr/local"   # Homebrew prefix matching our arch
+    if os.path.isdir(f"{home}/opt/libomp"):
+        return f"{home}/opt/libomp"
     try:
         p = subprocess.run(["brew", "--prefix", "libomp"], capture_output=True, text=True)
         prefix = p.stdout.strip()
