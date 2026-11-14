@@ -9,7 +9,9 @@ build happens once per machine.
 import ctypes
 import hashlib
 import os
+import platform
 import subprocess
+import sys
 
 _LIB = None
 _TRIED = False
@@ -23,6 +25,9 @@ def _cache_dir():
 
 def _brew_libomp():
     """Return the Homebrew libomp prefix on macOS, or None."""
+    home = "/opt/homebrew" if platform.machine() == "arm64" else "/usr/local"   # Homebrew prefix matching our arch
+    if os.path.isdir(f"{home}/opt/libomp"):
+        return f"{home}/opt/libomp"
     try:
         p = subprocess.run(["brew", "--prefix", "libomp"], capture_output=True, text=True)
         prefix = p.stdout.strip()
@@ -41,8 +46,17 @@ def _variants():
         v.append((["-Xpreprocessor", "-fopenmp", f"-I{omp}/include"],
                   [f"-L{omp}/lib", "-lomp", f"-Wl,-rpath,{omp}/lib"]))
     v.append((["-fopenmp"], ["-fopenmp"]))                     # gcc / OpenMP-capable clang (Linux)
-    v.append(([], []))                                         # no OpenMP: single-threaded C
+    v.append((["-fopenmp-simd"], []))                          # no OpenMP runtime: single-threaded C, simd pragma only
+    v.append(([], []))                                         # last resort: plain C
     return v
+
+
+def _arch_flags():
+    """macOS: build for the running interpreter's arch (an x86_64 Python under Rosetta on an arm64
+    host cannot dlopen the compiler's default arm64 output)."""
+    if sys.platform == "darwin" and platform.machine() in ("x86_64", "arm64"):
+        return ["-arch", platform.machine()]
+    return []
 
 
 def _set_sig(lib):
@@ -51,6 +65,13 @@ def _set_sig(lib):
     P = ctypes.POINTER
     f.argtypes = [P(ctypes.c_uint64), P(ctypes.c_int64), P(ctypes.c_float),
                   P(ctypes.c_float), P(ctypes.c_float),
+                  ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+                  ctypes.c_int, ctypes.c_int, ctypes.c_int, P(ctypes.c_int64)]
+    g = lib.bt_query_batch_ext
+    g.restype = None
+    g.argtypes = [P(ctypes.c_uint64), P(ctypes.c_int64), P(ctypes.c_float),
+                  P(ctypes.c_float), P(ctypes.c_float),
+                  P(ctypes.c_uint64), P(ctypes.c_uint64), ctypes.c_int, ctypes.c_int,
                   ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
                   ctypes.c_int, ctypes.c_int, ctypes.c_int, P(ctypes.c_int64)]
     return lib
@@ -79,9 +100,9 @@ def get_lib():
             try: os.remove(so)
             except Exception: pass
     cc = os.environ.get("CC") or "cc"
-    variants = [([], [])] if os.environ.get("BITBUDGET_NO_OMP") else _variants()
+    variants = [(["-fopenmp-simd"], [])] if os.environ.get("BITBUDGET_NO_OMP") else _variants()
     for cflags, lflags in variants:
-        cmd = [cc, "-O3", "-shared", "-fPIC", *cflags, "-o", so, src, *lflags, "-lm"]
+        cmd = [cc, "-O3", "-shared", "-fPIC", *_arch_flags(), *cflags, "-o", so, src, *lflags, "-lm"]
         try:
             subprocess.run(cmd, check=True, capture_output=True)
         except Exception:
