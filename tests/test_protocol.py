@@ -42,3 +42,12 @@ def test_float32_is_lossless_baseline():
     assert rows["float32"]["recall"] == 1.0          # exact == exact ground truth
     # a one-bit code plus re-ranking should recover essentially all of the float quality
     assert rows["binary+rerank"]["pct_float"] >= rows["binary"]["pct_float"]
+
+
+def test_ndcg_exclude_self_drops_query_document():
+    from bitbudget.metrics import ndcg_at_k
+    # query "a" is also doc "a" and scores highest; the judged counter-argument is doc "b".
+    scores = np.array([[1.0, 0.5, 0.1]])
+    cids, qids, qrels = ["a", "b", "c"], ["a"], {"a": {"b": 1}}
+    assert ndcg_at_k(scores, qids, cids, qrels, k=2) < 1.0
+    assert ndcg_at_k(scores, qids, cids, qrels, k=2, exclude_self=True) == 1.0

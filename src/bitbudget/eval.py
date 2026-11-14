@@ -6,19 +6,20 @@ from .methods import METHODS
 from .metrics import ndcg_at_k, recall_at_k
 
 
-def evaluate(demb, qemb, cids, qids, qrels, methods=None, recall_k=10, ndcg_k=10):
+def evaluate(demb, qemb, cids, qids, qrels, methods=None, recall_k=10, ndcg_k=10, exclude_self=False):
     """Run `methods` (default: all registered) and return a list of result dicts:
     {method, axis, bytes, ndcg, recall, pct_float}. nDCG uses the graded qrels; recall uses
     the exact float top-k as ground truth; pct_float is nDCG relative to the float32 baseline.
+    exclude_self is passed to ndcg_at_k (see there); recall is unaffected.
     """
     methods = methods or list(METHODS)
     exact = qemb @ demb.T                              # exact float scores = recall ground truth
-    base = ndcg_at_k(exact, qids, cids, qrels, ndcg_k)
+    base = ndcg_at_k(exact, qids, cids, qrels, ndcg_k, exclude_self)
     rows = []
     for name in methods:
         fn = METHODS[name]
         scores, bpv = fn(demb, qemb)
-        n = ndcg_at_k(scores, qids, cids, qrels, ndcg_k)
+        n = ndcg_at_k(scores, qids, cids, qrels, ndcg_k, exclude_self)
         r = recall_at_k(scores, exact, recall_k)
         rows.append(dict(method=name, axis=getattr(fn, "axis", "?"), bytes=float(bpv),
                          ndcg=round(n, 4), recall=round(r, 4),

@@ -63,7 +63,8 @@ def cmd_eval(a, _embed_first=False):
         if _embed_first:
             cmd_embed(argparse.Namespace(**{**vars(a), "corpus": [corpus]}))
         demb, qemb, cids, qids, qrels = _load_emb(a, corpus)
-        rows = evaluate(demb, qemb, cids, qids, qrels, methods)
+        rows = evaluate(demb, qemb, cids, qids, qrels, methods,
+                        exclude_self=corpus in datasets.SELF_MATCH_CORPORA)
         per_corpus[corpus] = rows
         print(f"\n=== {a.embedder} x {corpus} ({demb.shape[1]}-d) ===")
         print(f"  {'method':16s}{'bytes':>8s}{'nDCG@10':>9s}{'recall@10':>11s}{'% float':>9s}")

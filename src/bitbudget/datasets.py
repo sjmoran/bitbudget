@@ -8,6 +8,8 @@ import zipfile
 BEIR_URL = "https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/{}.zip"
 # the standard small/medium BEIR corpora the leaderboard is defined over
 CORPORA = ["scifact", "nfcorpus", "arguana", "fiqa"]
+# corpora whose queries are themselves corpus documents: nDCG excludes the self-match
+SELF_MATCH_CORPORA = {"arguana"}
 
 
 def _download(name, cache):
